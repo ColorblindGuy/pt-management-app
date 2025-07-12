@@ -269,25 +269,26 @@
                 <h2>👥 Unit Setup</h2>
                 <div class="form-group">
                     <label for="unitName">Unit Name:</label>
-                    <input type="text" id="unitName" placeholder="Enter your unit name" value="Alpha Company">
+                    <input type="text" id="unitName" placeholder="Enter your unit name" value="73 ISRS Det 6" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="memberFile">Upload Member List (CSV/TXT):</label>
+                    <input type="file" id="memberFile" accept=".csv,.txt" onchange="uploadMemberList()">
+                    <small style="color: #666; display: block; margin-top: 5px;">Upload a file with one name per line</small>
                 </div>
                 <div class="form-group">
                     <label for="newMember">Add Unit Member:</label>
                     <input type="text" id="newMember" placeholder="Enter member name">
+                    <label>
+                        <input type="checkbox" id="isPTLeader" style="width: auto; margin-right: 5px;">
+                        PT Leader
+                    </label>
                     <button class="btn" onclick="addMember()">Add Member</button>
                 </div>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-number" id="totalMembers">0</div>
-                        <div>Total Members</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="totalSessions">0</div>
-                        <div>PT Sessions</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="avgAttendance">0%</div>
-                        <div>Avg Attendance</div>
+                <div class="form-group">
+                    <h3>Current Members:</h3>
+                    <div id="memberManagement" class="member-management">
+                        <!-- Member management will be populated here -->
                     </div>
                 </div>
             </div>
