@@ -9,7 +9,6 @@
     --body-font: 'Lato', sans-serif;
 }
 /* Add your original styles here - restoring full UI */
-/* Replace or update existing styles with these */
 body {
     font-family: var(--body-font);
     background-color: var(--background-color);
@@ -71,6 +70,192 @@ h1, h2 {
     font-size: 1.2em;
     padding: 5px;
     line-height: 1;
+}
+/* Add these new styles to your style.css file */
+
+/* Style for the secondary button (like 'Hide Members') */
+.btn-secondary {
+    background-color: #6c757d;
+}
+.btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+/* Class to hide the member list */
+.members-hidden {
+    display: none;
+}
+
+/* --- Workout History Styles --- */
+.workout-history {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+.workout-history h3 {
+    margin-top: 0;
+}
+#workoutHistoryList {
+    list-style: none;
+    padding: 0;
+    max-height: 150px;
+    overflow-y: auto;
+}
+#workoutHistoryList li {
+    padding: 8px;
+    border-bottom: 1px solid #e0e0e0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+#workoutHistoryList li:hover {
+    background-color: #e9ecef;
+}
+#workoutHistoryList li:last-child {
+    border-bottom: none;
+}
+
+/* --- AI Chatbot Styles --- */
+#aiChatContainer {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+    margin-bottom: 20px;
+}
+#chatBox {
+    height: 200px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.chat-message {
+    padding: 10px;
+    border-radius: 10px;
+    max-width: 80%;
+}
+.user-message {
+    background-color: #e9ecef;
+    align-self: flex-end;
+    text-align: right;
+}
+.ai-message {
+    background-color: #d1e7dd;
+    align-self: flex-start;
+}
+.ai-message button {
+    margin-top: 10px;
+    font-size: 14px;
+    padding: 6px 12px;
+}
+.chat-input-area {
+    display: flex;
+    gap: 10px;
+}
+
+/* --- Today's Workout Display --- */
+.workout-display {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    min-height: 100px;
+    white-space: pre-wrap; /* Preserves formatting from AI */
+}
+/* Add these new styles to your style.css file */
+
+/* Style for the secondary button (like 'Hide Members') */
+.btn-secondary {
+    background-color: #6c757d;
+}
+.btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+/* Class to hide the member list */
+.members-hidden {
+    display: none;
+}
+
+/* --- Workout History Styles --- */
+.workout-history {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+.workout-history h3 {
+    margin-top: 0;
+}
+#workoutHistoryList {
+    list-style: none;
+    padding: 0;
+    max-height: 150px;
+    overflow-y: auto;
+}
+#workoutHistoryList li {
+    padding: 8px;
+    border-bottom: 1px solid #e0e0e0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+#workoutHistoryList li:hover {
+    background-color: #e9ecef;
+}
+#workoutHistoryList li:last-child {
+    border-bottom: none;
+}
+
+/* --- AI Chatbot Styles --- */
+#aiChatContainer {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+    margin-bottom: 20px;
+}
+#chatBox {
+    height: 200px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.chat-message {
+    padding: 10px;
+    border-radius: 10px;
+    max-width: 80%;
+}
+.user-message {
+    background-color: #e9ecef;
+    align-self: flex-end;
+    text-align: right;
+}
+.ai-message {
+    background-color: #d1e7dd;
+    align-self: flex-start;
+}
+.ai-message button {
+    margin-top: 10px;
+    font-size: 14px;
+    padding: 6px 12px;
+}
+.chat-input-area {
+    display: flex;
+    gap: 10px;
+}
+
+/* --- Today's Workout Display --- */
+.workout-display {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    min-height: 100px;
+    white-space: pre-wrap; /* Preserves formatting from AI */
 }
 /* Add these styles for inputs and the new spinner */
 input[type="text"],
