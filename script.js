@@ -77,27 +77,45 @@ function assignRandomLeader() {
     dom.ptLeaderSelect.value = randomLeader.name;
 }
 
+// Find the generateWorkout function and modify it
 function generateWorkout() {
-    const type = dom.workoutType.value;
-    const intensity = dom.workoutIntensity.value;
-    const workouts = {
-        cardio: {
-            light: 'Light jog and dynamic stretching for 30 minutes.',
-            moderate: 'Interval running: 5 mins warm-up, 8x400m sprints with 200m jog recovery, 5 mins cool-down.',
-            intense: 'HIIT session: 30s burpees, 30s rest, 30s high knees, 30s rest. Repeat 10 times. Followed by a 2-mile run.'
-        },
-        strength: {
-            light: 'Bodyweight circuit: 3 rounds of 15 push-ups, 20 squats, 30s plank.',
-            moderate: 'Push/Pull workout: 4 sets of pull-ups, push-ups, rows, and overhead press. Focus on core engagement.',
-            intense: 'Heavy strength circuit: 5x5 deadlifts, 5x5 bench press, 5x5 squats.'
-        },
-        mixed: {
-            light: '20-minute brisk walk followed by light core exercises (crunches, leg raises).',
-            moderate: '1-mile run followed by a full-body strength circuit (kettlebell swings, lunges, push-ups).',
-            intense: 'Team-based competition: Sprints, buddy carries, and circuit stations.'
-        }
-    };
-    dom.workoutContent.textContent = workouts[type][intensity];
+    const generateBtn = dom.generateWorkoutBtn;
+
+    // --- Start of loading state ---
+    // Save original text and disable the button
+    const originalText = generateBtn.innerHTML;
+    generateBtn.innerHTML = '<div class="spinner"></div>';
+    generateBtn.disabled = true;
+    // ---
+
+    // Simulate a delay (like an API call)
+    setTimeout(() => {
+        const type = dom.workoutType.value;
+        const intensity = dom.workoutIntensity.value;
+        const workouts = {
+            cardio: {
+                light: 'Light jog and dynamic stretching for 30 minutes.',
+                moderate: 'Interval running: 5 mins warm-up, 8x400m sprints with 200m jog recovery, 5 mins cool-down.',
+                intense: 'HIIT session: 30s burpees, 30s rest, 30s high knees, 30s rest. Repeat 10 times. Followed by a 2-mile run.'
+            },
+            strength: {
+                light: 'Bodyweight circuit: 3 rounds of 15 push-ups, 20 squats, 30s plank.',
+                moderate: 'Push/Pull workout: 4 sets of pull-ups, push-ups, rows, and overhead press. Focus on core engagement.',
+                intense: 'Heavy strength circuit: 5x5 deadlifts, 5x5 bench press, 5x5 squats.'
+            },
+            mixed: {
+                light: '20-minute brisk walk followed by light core exercises (crunches, leg raises).',
+                moderate: '1-mile run followed by a full-body strength circuit (kettlebell swings, lunges, push-ups).',
+                intense: 'Team-based competition: Sprints, buddy carries, and circuit stations.'
+            }
+        };
+        dom.workoutContent.textContent = workouts[type][intensity];
+
+        // --- Restore the button ---
+        generateBtn.innerHTML = originalText;
+        generateBtn.disabled = false;
+        // ---
+    }, 800); // 800ms delay to make the spinner visible
 }
 
 function generateReport() {
