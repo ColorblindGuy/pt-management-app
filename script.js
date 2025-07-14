@@ -160,6 +160,29 @@ function removeMember(indexToRemove) {
     }
 }
 
+function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        lines.forEach(line => {
+            const name = line.trim();
+            if (name && !members.some(m => m.name === name)) {
+                members.push({ name, isPTLeader: false });
+            }
+        });
+        
+        saveData();
+        updateUI();
+        showNotification(`Added ${lines.length} members from file!`, "success");
+    };
+    reader.readAsText(file);
+}
+
 function selectRandomLeader() {
     const ptLeaders = members.filter(m => m.isPTLeader);
     if (ptLeaders.length > 0) {
@@ -362,6 +385,7 @@ function setupEventListeners() {
     dom.generateReportBtn.addEventListener('click', generateReport);
     dom.copyReportBtn.addEventListener('click', copyReportToClipboard);
     dom.randomLeaderBtn.addEventListener('click', selectRandomLeader);
+    dom.memberFile.addEventListener('change', handleFileUpload);
     
     // UI interactions
     dom.ptLocationSelect.addEventListener('change', function () {
