@@ -1,7 +1,8 @@
 // =================================================================
 // --- Firebase Configuration & Initialization ---
 // =================================================================
-// PASTE YOUR FIREBASE CONFIGURATION OBJECT HERE
+
+// *** PASTE YOUR UNIQUE FIREBASE CONFIGURATION OBJECT HERE ***
 const firebaseConfig = {
   apiKey: "AIzaSyB-aRNJ_vAWux8y_PHEdgkHumpKUhw-8lU",
   authDomain: "pt-management-system.firebaseapp.com",
@@ -11,11 +12,12 @@ const firebaseConfig = {
   appId: "1:1046090768322:web:8e4f4351a58946adc7005b"
 };
 
+// *** THIS BLOCK IS NOW ACTIVE ***
 // Initialize Firebase and Firestore
-// This code will activate once you add the Firebase SDKs to your HTML and uncomment it.
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const unitDataRef = db.collection("units").doc("73ISRS_Det6"); // Using a single document for all unit data
+// All data for your unit will be stored in a single document for simplicity.
+const unitDataRef = db.collection("units").doc("73ISRS_Det6");
 
 
 // =================================================================
@@ -23,7 +25,7 @@ const unitDataRef = db.collection("units").doc("73ISRS_Det6"); // Using a single
 // =================================================================
 let members = [];
 let workoutHistory = [];
-let savedReports = []; // For storing generated reports
+let savedReports = [];
 
 const dom = {
     unitName: document.getElementById('unitName'),
@@ -49,82 +51,50 @@ const dom = {
     reportOutput: document.getElementById('reportOutput'),
 };
 
-
 // =================================================================
-// --- Data Persistence (Backend Communication) ---
+// --- Data Persistence (Live Backend Communication) ---
 // =================================================================
 
-/**
- * Saves the entire application state to the Firestore database.
- * This function will be called whenever data changes.
- */
 async function saveData() {
-    console.log("Attempting to save data to the backend...");
+    console.log("Saving data to Firestore...");
     try {
-        // This is where you'd use the Firestore reference to save data.
-        // await unitDataRef.set({
-        //   members: members,
-        //   workoutHistory: workoutHistory,
-        //   savedReports: savedReports
-        // });
-        console.log("Data saved successfully! (Simulated)");
+        // This now writes the data to your live Firebase database
+        await unitDataRef.set({
+            members: members,
+            workoutHistory: workoutHistory,
+            savedReports: savedReports
+        });
+        console.log("Data saved successfully!");
     } catch (error) {
-        console.error("Error saving data: ", error);
-        alert("Could not save data to the server. Please check your connection and configuration.");
+        console.error("Error saving data to Firestore: ", error);
+        alert("Could not save data to the server. Check console for errors.");
     }
 }
 
-/**
- * Loads the entire application state from the Firestore database.
- * This function is called once when the application starts.
- */
 async function loadData() {
-    console.log("Attempting to load data from the backend...");
+    console.log("Loading data from Firestore...");
     try {
-        // This is where you'd get the data from Firestore.
-        // const doc = await unitDataRef.get();
-        // if (doc.exists) {
-        //   const data = doc.data();
-        //   members = data.members || [];
-        //   workoutHistory = data.workoutHistory || [];
-        //   savedReports = data.savedReports || [];
-        //   console.log("Data loaded successfully!");
-        // } else {
-        //   console.log("No data found on the server. Initializing a new document.");
-        //   await saveData(); // Create the document if it doesn't exist
-        // }
-        console.log("Data loaded successfully! (Simulated)");
+        // This now reads data from your live Firebase database
+        const doc = await unitDataRef.get();
+        if (doc.exists) {
+            const data = doc.data();
+            members = data.members || [];
+            workoutHistory = data.workoutHistory || [];
+            savedReports = data.savedReports || [];
+            console.log("Data loaded successfully!");
+        } else {
+            console.log("No data found on server. Initializing new document.");
+            await saveData(); // Creates the document if it's the first time
+        }
     } catch (error) {
-        console.error("Error loading data: ", error);
-        alert("Could not load data from the server. Please check your connection and configuration.");
+        console.error("Error loading data from Firestore: ", error);
+        alert("Could not load data from the server. Check console for errors.");
     }
 }
-
 
 // =================================================================
 // --- Core Application Logic ---
 // =================================================================
-
-async function getAIWorkout(prompt) {
-    // This function remains the same, simulating an LLM call.
-    // In a real app, you'd call a cloud function or a secure API endpoint here.
-    console.log("Simulating AI API call with prompt:", prompt);
-    return new Promise(resolve => {
-        setTimeout(() => {
-            const sampleWorkout = `**Workout Plan: ${prompt}**\n\n` +
-                `**1. Warm-up (5 minutes):**\n` +
-                `- Jumping Jacks (60 seconds)\n` +
-                `- High Knees (60 seconds)\n\n` +
-                `**2. Main Circuit (20 minutes):**\n` +
-                `*Complete 3 rounds, 60s rest between rounds*\n` +
-                `- 15 Push-ups\n` +
-                `- 20 Bodyweight Squats\n\n` +
-                `**3. Cool-down (5 minutes):**\n` +
-                `- Quad Stretch (30s each leg)`;
-            resolve(sampleWorkout);
-        }, 1500);
-    });
-}
 
 function addMember() {
     const name = dom.newMemberInput.value.trim();
@@ -163,37 +133,56 @@ function generateReport() {
     dom.reportOutput.textContent = reportText;
     dom.copyReportBtn.style.display = 'inline-block';
 
-    // Create a structured report object and save it
     const reportObject = {
-        id: new Date().getTime(), // Unique ID
+        id: new Date().getTime(),
         date: date,
         leader: leader,
         location: loc,
         content: reportText
     };
-    savedReports.unshift(reportObject); // Add to the start of the array
+    savedReports.unshift(reportObject);
     saveData(); // Save the new report to the backend
-    updateReportsUI(); // Update the UI to show the new saved report
+    updateReportsUI();
 }
 
 function confirmAndUseWorkout(workoutText) {
     dom.workoutContent.textContent = workoutText;
     if (workoutHistory[0] !== workoutText) {
         workoutHistory.unshift(workoutText);
-        if (workoutHistory.length > 5) workoutHistory.pop();
+        if (workoutHistory.length > 10) workoutHistory.pop(); // Keep last 10
         saveData(); // Save changes to the backend
         updateWorkoutHistoryUI();
     }
     alert("Workout has been set and saved to history!");
 }
 
+async function handleSendPrompt() {
+    const prompt = dom.aiPromptInput.value.trim();
+    if (!prompt) return;
+
+    displayMessage(prompt, 'user');
+    dom.aiPromptInput.value = '';
+    dom.sendPromptBtn.disabled = true;
+    dom.sendPromptBtn.innerHTML = '<div class="spinner"></div>';
+
+    try {
+        // In a real app, this would call a secure cloud function
+        const aiResponse = await getAIWorkout(prompt);
+        displayMessage(aiResponse, 'ai');
+    } catch (error) {
+        console.error("Error fetching AI workout:", error);
+        displayMessage("Sorry, I couldn't generate a workout right now.", 'ai');
+    } finally {
+        dom.sendPromptBtn.disabled = false;
+        dom.sendPromptBtn.textContent = 'Ask AI';
+    }
+}
 
 // =================================================================
 // --- UI Update & Display Functions ---
 // =================================================================
 
 function updateUI() {
-    // This function updates the member list and PT leader dropdown
     dom.memberManagementDiv.innerHTML = '';
     dom.ptLeaderSelect.innerHTML = '<option value="">Select PT Leader</option>';
 
@@ -218,12 +207,10 @@ function updateUI() {
             dom.ptLeaderSelect.appendChild(option);
         }
     });
-
     dom.toggleMembersBtn.style.display = members.length > 0 ? 'inline-block' : 'none';
 }
 
 function updateWorkoutHistoryUI() {
-    // This function updates the workout history list
     dom.workoutHistoryList.innerHTML = '';
     workoutHistory.forEach(workout => {
         const li = document.createElement('li');
@@ -234,14 +221,10 @@ function updateWorkoutHistoryUI() {
     });
 }
 
-/**
- * A new function to display saved reports.
- * You will need to add a corresponding <div> in your HTML to show this list.
- */
 function updateReportsUI() {
+    // This is a placeholder. You would need a <div> in your HTML
+    // to display the list of saved reports.
     console.log("Updating reports UI with:", savedReports);
-    // Example: Find a <div id="savedReportsList"></div> in your HTML
-    // and populate it with the list of saved reports.
 }
 
 function toggleMembersVisibility() {
@@ -250,37 +233,14 @@ function toggleMembersVisibility() {
     dom.toggleMembersBtn.textContent = isHidden ? 'Show Members' : 'Hide Members';
 }
 
-async function handleSendPrompt() {
-    const prompt = dom.aiPromptInput.value.trim();
-    if (!prompt) return;
-
-    displayMessage(prompt, 'user');
-    dom.aiPromptInput.value = '';
-    dom.sendPromptBtn.disabled = true;
-    dom.sendPromptBtn.innerHTML = '<div class="spinner"></div>';
-
-    try {
-        const aiResponse = await getAIWorkout(prompt);
-        displayMessage(aiResponse, 'ai');
-    } catch (error) {
-        console.error("Error fetching AI workout:", error);
-        displayMessage("Sorry, I couldn't generate a workout right now.", 'ai');
-    } finally {
-        dom.sendPromptBtn.disabled = false;
-        dom.sendPromptBtn.textContent = 'Ask AI';
-    }
-}
-
 function displayMessage(content, type) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-message ${type}-message`;
-
     if (type === 'ai') {
         const workoutText = document.createElement('p');
         workoutText.style.whiteSpace = 'pre-wrap';
         workoutText.textContent = content;
         messageDiv.appendChild(workoutText);
-
         const confirmBtn = document.createElement('button');
         confirmBtn.className = 'btn';
         confirmBtn.textContent = 'Confirm & Use this Workout';
@@ -289,24 +249,24 @@ function displayMessage(content, type) {
     } else {
         messageDiv.textContent = content;
     }
-
     dom.chatBox.appendChild(messageDiv);
     dom.chatBox.scrollTop = dom.chatBox.scrollHeight;
 }
 
+// This is a placeholder for the AI call.
+async function getAIWorkout(prompt) {
+    return new Promise(resolve => setTimeout(() => resolve(`**Simulated AI Response for:** ${prompt}\n\n- 3 sets of 10 push-ups\n- 3 sets of 20 squats`), 1000));
+}
 
 // =================================================================
 // --- Initialization ---
 // =================================================================
 
-/**
- * The main initialization function for the application.
- * It's now `async` to wait for the initial data load from the server.
- */
 async function init() {
     dom.ptDate.value = new Date().toISOString().split('T')[0];
 
-    await loadData(); // Wait for data to load before doing anything else
+    // Wait for data to load from the server before doing anything else
+    await loadData();
 
     // Now that data is loaded, update all relevant UI sections
     updateUI();
@@ -315,9 +275,7 @@ async function init() {
 
     // Setup all event listeners
     dom.addMemberBtn.addEventListener('click', addMember);
-    dom.randomLeaderBtn.addEventListener('click', () => { /* assignRandomLeader logic can be added here */ });
     dom.generateReportBtn.addEventListener('click', generateReport);
-    dom.copyReportBtn.addEventListener('click', () => { /* copyReportToClipboard logic */ });
     dom.ptLocationSelect.addEventListener('change', function () {
         dom.customLocationInput.style.display = this.value === 'custom' ? 'block' : 'none';
     });
@@ -326,5 +284,5 @@ async function init() {
     dom.aiPromptInput.addEventListener('keypress', (e) => e.key === 'Enter' && handleSendPrompt());
 }
 
-// Start the application when the window loads
+// Start the application
 window.onload = init;
