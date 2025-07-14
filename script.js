@@ -2,7 +2,12 @@
 // --- Firebase Configuration & Initialization ---
 // =================================================================
 
-// *** PASTE YOUR UNIQUE FIREBASE CONFIGURATION OBJECT HERE ***
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyB-aRNJ_vAWux8y_PHEdgkHumpKUhw-8lU",
   authDomain: "pt-management-system.firebaseapp.com",
@@ -11,6 +16,9 @@ const firebaseConfig = {
   messagingSenderId: "1046090768322",
   appId: "1:1046090768322:web:8e4f4351a58946adc7005b"
 };
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 
 // *** THIS BLOCK IS NOW ACTIVE ***
 // Initialize Firebase and Firestore
