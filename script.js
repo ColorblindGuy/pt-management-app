@@ -63,36 +63,43 @@ const dom = {
 // --- Data Persistence (Live Backend Communication) ---
 // =================================================================
 
+/**
+ * Saves the entire application state to the Firestore database.
+ */
 async function saveData() {
     console.log("Saving data to Firestore...");
     try {
-        // This now writes the data to your live Firebase database
+        // *** THIS IS THE REAL, ACTIVE CODE ***
         await unitDataRef.set({
             members: members,
             workoutHistory: workoutHistory,
             savedReports: savedReports
         });
-        console.log("Data saved successfully!");
+        console.log("Data saved successfully to the live database!");
     } catch (error) {
         console.error("Error saving data to Firestore: ", error);
         alert("Could not save data to the server. Check console for errors.");
     }
 }
 
+/**
+ * Loads the entire application state from the Firestore database.
+ */
 async function loadData() {
     console.log("Loading data from Firestore...");
     try {
-        // This now reads data from your live Firebase database
+        // *** THIS IS THE REAL, ACTIVE CODE ***
         const doc = await unitDataRef.get();
         if (doc.exists) {
             const data = doc.data();
             members = data.members || [];
             workoutHistory = data.workoutHistory || [];
             savedReports = data.savedReports || [];
-            console.log("Data loaded successfully!");
+            console.log("Data loaded successfully from the live database!");
         } else {
             console.log("No data found on server. Initializing new document.");
-            await saveData(); // Creates the document if it's the first time
+            // Creates the document if it's the first time running the app
+            await saveData();
         }
     } catch (error) {
         console.error("Error loading data from Firestore: ", error);
