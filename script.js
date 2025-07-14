@@ -25,6 +25,7 @@ const unitDataRef = db.collection("units").doc("73ISRS_Det6");
 let members = [];
 let workoutHistory = [];
 let savedReports = [];
+let attendanceRecords = [];
 
 const dom = {
     unitName: document.getElementById('unitName'),
@@ -48,6 +49,12 @@ const dom = {
     generateReportBtn: document.getElementById('generateReportBtn'),
     copyReportBtn: document.getElementById('copyReportBtn'),
     reportOutput: document.getElementById('reportOutput'),
+    todayRosterBtn: document.getElementById('todayRosterBtn'),
+    rosterHistoryBtn: document.getElementById('rosterHistoryBtn'),
+    todayRosterContent: document.getElementById('todayRosterContent'),
+    rosterHistoryContent: document.getElementById('rosterHistoryContent'),
+    attendanceList: document.getElementById('attendanceList'),
+    attendanceHistory: document.getElementById('attendanceHistory'),
 };
 
 // =================================================================
@@ -64,10 +71,12 @@ async function saveData() {
             members: members,
             workoutHistory: workoutHistory,
             savedReports: savedReports,
-            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+            attendanceRecords: attendanceRecords
         });
         console.log("Data saved successfully to the live database!");
-        
+
+      
         // Add visual feedback
         showNotification("Data saved successfully!", "success");
     } catch (error) {
@@ -88,6 +97,7 @@ async function loadData() {
             members = data.members || [];
             workoutHistory = data.workoutHistory || [];
             savedReports = data.savedReports || [];
+            attendanceRecords = data.attendanceRecords || [];
             console.log("Data loaded successfully from the live database!");
             showNotification("Data loaded from server!", "success");
         } else {
@@ -386,6 +396,8 @@ function setupEventListeners() {
     dom.copyReportBtn.addEventListener('click', copyReportToClipboard);
     dom.randomLeaderBtn.addEventListener('click', selectRandomLeader);
     dom.memberFile.addEventListener('change', handleFileUpload);
+    dom.todayRosterBtn.addEventListener('click', showTodayRoster);
+    dom.rosterHistoryBtn.addEventListener('click', showRosterHistory);
     
     // UI interactions
     dom.ptLocationSelect.addEventListener('change', function () {
@@ -440,4 +452,25 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
     init();
+}
+
+function showTodayRoster() {
+    dom.todayRosterContent.style.display = 'block';
+    dom.rosterHistoryContent.style.display = 'none';
+    updateTodayRosterUI();
+}
+
+function showRosterHistory() {
+    dom.todayRosterContent.style.display = 'none';
+    dom.rosterHistoryContent.style.display = 'block';
+    updateRosterHistoryUI();
+}
+
+function updateTodayRosterUI() {
+    const today = new Date().toISOString().split('T')[0];
+    // Implementation for showing today's roster
+}
+
+function updateRosterHistoryUI() {
+    // Implementation for showing roster history
 }
