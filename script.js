@@ -2,9 +2,6 @@
 // --- Firebase Configuration & Initialization ---
 // =================================================================
 
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyB-aRNJ_vAWux8y_PHEdgkHumpKUhw-8lU",
@@ -15,16 +12,12 @@ const firebaseConfig = {
   appId: "1:1046090768322:web:8e4f4351a58946adc7005b"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-
-// *** THIS BLOCK IS NOW ACTIVE ***
-// Initialize Firebase and Firestore
+// Initialize Firebase (using compat SDK)
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-// All data for your unit will be stored in a single document for simplicity.
-const unitDataRef = db.collection("units").doc("73ISRS_Det6");
 
+// Reference to your unit's document
+const unitDataRef = db.collection("units").doc("73ISRS_Det6");
 
 // =================================================================
 // --- Global State & DOM Cache ---
@@ -67,16 +60,19 @@ const dom = {
 async function saveData() {
     console.log("Saving data to Firestore...");
     try {
-        // *** THIS IS THE REAL, ACTIVE CODE ***
         await unitDataRef.set({
             members: members,
             workoutHistory: workoutHistory,
-            savedReports: savedReports
+            savedReports: savedReports,
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
         });
         console.log("Data saved successfully to the live database!");
+        
+        // Add visual feedback
+        showNotification("Data saved successfully!", "success");
     } catch (error) {
         console.error("Error saving data to Firestore: ", error);
-        alert("Could not save data to the server. Check console for errors.");
+        showNotification("Error saving data. Check console for details.", "error");
     }
 }
 
@@ -86,7 +82,6 @@ async function saveData() {
 async function loadData() {
     console.log("Loading data from Firestore...");
     try {
-        // *** THIS IS THE REAL, ACTIVE CODE ***
         const doc = await unitDataRef.get();
         if (doc.exists) {
             const data = doc.data();
@@ -94,15 +89,49 @@ async function loadData() {
             workoutHistory = data.workoutHistory || [];
             savedReports = data.savedReports || [];
             console.log("Data loaded successfully from the live database!");
+            showNotification("Data loaded from server!", "success");
         } else {
             console.log("No data found on server. Initializing new document.");
             // Creates the document if it's the first time running the app
             await saveData();
+            showNotification("Initialized new database document!", "info");
         }
     } catch (error) {
         console.error("Error loading data from Firestore: ", error);
-        alert("Could not load data from the server. Check console for errors.");
+        showNotification("Error loading data. Check console for details.", "error");
     }
+}
+
+/**
+ * Sets up real-time listener for data changes
+ */
+function setupRealtimeListener() {
+    unitDataRef.onSnapshot((doc) => {
+        if (doc.exists) {
+            const data = doc.data();
+            const newMembers = data.members || [];
+            const newWorkoutHistory = data.workoutHistory || [];
+            const newSavedReports = data.savedReports || [];
+            
+            // Only update UI if data actually changed
+            if (JSON.stringify(members) !== JSON.stringify(newMembers) ||
+                JSON.stringify(workoutHistory) !== JSON.stringify(newWorkoutHistory) ||
+                JSON.stringify(savedReports) !== JSON.stringify(newSavedReports)) {
+                
+                members = newMembers;
+                workoutHistory = newWorkoutHistory;
+                savedReports = newSavedReports;
+                
+                updateUI();
+                updateWorkoutHistoryUI();
+                updateReportsUI();
+                
+                console.log("Data updated from real-time sync!");
+            }
+        }
+    }, (error) => {
+        console.error("Error in real-time listener: ", error);
+    });
 }
 
 // =================================================================
@@ -118,6 +147,8 @@ function addMember() {
         updateUI();
         dom.newMemberInput.value = '';
         dom.isPTLeaderCheckbox.checked = false;
+    } else if (name && members.some(m => m.name === name)) {
+        showNotification("Member already exists!", "error");
     }
 }
 
@@ -126,6 +157,17 @@ function removeMember(indexToRemove) {
         members.splice(indexToRemove, 1);
         saveData(); // Save changes to the backend
         updateUI();
+    }
+}
+
+function selectRandomLeader() {
+    const ptLeaders = members.filter(m => m.isPTLeader);
+    if (ptLeaders.length > 0) {
+        const randomLeader = ptLeaders[Math.floor(Math.random() * ptLeaders.length)];
+        dom.ptLeaderSelect.value = randomLeader.name;
+        showNotification(`Random leader selected: ${randomLeader.name}`, "info");
+    } else {
+        showNotification("No PT Leaders available!", "error");
     }
 }
 
@@ -138,7 +180,7 @@ function generateReport() {
     const workout = dom.workoutContent.textContent;
 
     if (!leader || !workout) {
-        alert("Please select a PT Leader and generate a workout before creating a report.");
+        showNotification("Please select a PT Leader and generate a workout before creating a report.", "error");
         return;
     }
 
@@ -156,6 +198,18 @@ function generateReport() {
     savedReports.unshift(reportObject);
     saveData(); // Save the new report to the backend
     updateReportsUI();
+    
+    showNotification("Report generated and saved!", "success");
+}
+
+function copyReportToClipboard() {
+    const reportText = dom.reportOutput.textContent;
+    navigator.clipboard.writeText(reportText).then(() => {
+        showNotification("Report copied to clipboard!", "success");
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+        showNotification("Failed to copy report", "error");
+    });
 }
 
 function confirmAndUseWorkout(workoutText) {
@@ -166,7 +220,7 @@ function confirmAndUseWorkout(workoutText) {
         saveData(); // Save changes to the backend
         updateWorkoutHistoryUI();
     }
-    alert("Workout has been set and saved to history!");
+    showNotification("Workout has been set and saved to history!", "success");
 }
 
 async function handleSendPrompt() {
@@ -266,9 +320,65 @@ function displayMessage(content, type) {
     dom.chatBox.scrollTop = dom.chatBox.scrollHeight;
 }
 
+// Notification system
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    
+    // Add to body
+    document.body.appendChild(notification);
+    
+    // Show notification
+    setTimeout(() => notification.classList.add('show'), 100);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => document.body.removeChild(notification), 300);
+    }, 3000);
+}
+
 // This is a placeholder for the AI call.
 async function getAIWorkout(prompt) {
-    return new Promise(resolve => setTimeout(() => resolve(`**Simulated AI Response for:** ${prompt}\n\n- 3 sets of 10 push-ups\n- 3 sets of 20 squats`), 1000));
+    return new Promise(resolve => 
+        setTimeout(() => resolve(
+            `**AI Workout Response for:** ${prompt}\n\n` +
+            `Warm-up (5 mins):\n- Light jogging in place\n- Arm circles\n- Leg swings\n\n` +
+            `Main Workout (20 mins):\n- 3 sets of 15 push-ups\n- 3 sets of 20 squats\n- 3 sets of 30-second plank\n- 3 sets of 10 burpees\n\n` +
+            `Cool-down (5 mins):\n- Walking\n- Stretching\n\n` +
+            `Note: This is a simulated response. In production, this would connect to a real AI API.`
+        ), 1000)
+    );
+}
+
+// =================================================================
+// --- Event Listeners Setup ---
+// =================================================================
+
+function setupEventListeners() {
+    // Core functionality
+    dom.addMemberBtn.addEventListener('click', addMember);
+    dom.generateReportBtn.addEventListener('click', generateReport);
+    dom.copyReportBtn.addEventListener('click', copyReportToClipboard);
+    dom.randomLeaderBtn.addEventListener('click', selectRandomLeader);
+    
+    // UI interactions
+    dom.ptLocationSelect.addEventListener('change', function () {
+        dom.customLocationInput.style.display = this.value === 'custom' ? 'block' : 'none';
+    });
+    dom.toggleMembersBtn.addEventListener('click', toggleMembersVisibility);
+    
+    // Chat functionality
+    dom.sendPromptBtn.addEventListener('click', handleSendPrompt);
+    dom.aiPromptInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSendPrompt();
+    });
+    
+    // Add member with Enter key
+    dom.newMemberInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addMember();
+    });
 }
 
 // =================================================================
@@ -276,26 +386,34 @@ async function getAIWorkout(prompt) {
 // =================================================================
 
 async function init() {
+    console.log("Initializing PT Management System...");
+    
+    // Set default date
     dom.ptDate.value = new Date().toISOString().split('T')[0];
 
-    // Wait for data to load from the server before doing anything else
-    await loadData();
+    // Setup event listeners
+    setupEventListeners();
 
-    // Now that data is loaded, update all relevant UI sections
-    updateUI();
-    updateWorkoutHistoryUI();
-    updateReportsUI();
-
-    // Setup all event listeners
-    dom.addMemberBtn.addEventListener('click', addMember);
-    dom.generateReportBtn.addEventListener('click', generateReport);
-    dom.ptLocationSelect.addEventListener('change', function () {
-        dom.customLocationInput.style.display = this.value === 'custom' ? 'block' : 'none';
-    });
-    dom.toggleMembersBtn.addEventListener('click', toggleMembersVisibility);
-    dom.sendPromptBtn.addEventListener('click', handleSendPrompt);
-    dom.aiPromptInput.addEventListener('keypress', (e) => e.key === 'Enter' && handleSendPrompt());
+    // Load data and setup real-time sync
+    try {
+        await loadData();
+        setupRealtimeListener();
+        
+        // Update UI after data loads
+        updateUI();
+        updateWorkoutHistoryUI();
+        updateReportsUI();
+        
+        console.log("PT Management System initialized successfully!");
+    } catch (error) {
+        console.error("Error during initialization:", error);
+        showNotification("Error initializing app. Check console for details.", "error");
+    }
 }
 
-// Start the application
-window.onload = init;
+// Start the application when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
