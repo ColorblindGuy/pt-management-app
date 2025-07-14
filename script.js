@@ -76,7 +76,7 @@ async function saveData() {
         });
         console.log("Data saved successfully to the live database!");
 
-      
+
         // Add visual feedback
         showNotification("Data saved successfully!", "success");
     } catch (error) {
@@ -122,20 +122,20 @@ function setupRealtimeListener() {
             const newMembers = data.members || [];
             const newWorkoutHistory = data.workoutHistory || [];
             const newSavedReports = data.savedReports || [];
-            
+
             // Only update UI if data actually changed
             if (JSON.stringify(members) !== JSON.stringify(newMembers) ||
                 JSON.stringify(workoutHistory) !== JSON.stringify(newWorkoutHistory) ||
                 JSON.stringify(savedReports) !== JSON.stringify(newSavedReports)) {
-                
+
                 members = newMembers;
                 workoutHistory = newWorkoutHistory;
                 savedReports = newSavedReports;
-                
+
                 updateUI();
                 updateWorkoutHistoryUI();
                 updateReportsUI();
-                
+
                 console.log("Data updated from real-time sync!");
             }
         }
@@ -173,19 +173,19 @@ function removeMember(indexToRemove) {
 function handleFileUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
     reader.onload = function(e) {
         const text = e.target.result;
         const lines = text.split('\n').filter(line => line.trim());
-        
+
         lines.forEach(line => {
             const name = line.trim();
             if (name && !members.some(m => m.name === name)) {
                 members.push({ name, isPTLeader: false });
             }
         });
-        
+
         saveData();
         updateUI();
         showNotification(`Added ${lines.length} members from file!`, "success");
@@ -231,7 +231,7 @@ function generateReport() {
     savedReports.unshift(reportObject);
     saveData(); // Save the new report to the backend
     updateReportsUI();
-    
+
     showNotification("Report generated and saved!", "success");
 }
 
@@ -306,6 +306,10 @@ function updateUI() {
             option.textContent = name;
             dom.ptLeaderSelect.appendChild(option);
         }
+        // Update attendance roster if it's currently showing
+        if (dom.todayRosterContent && dom.todayRosterContent.style.display !== 'none') {
+            updateTodayRosterUI();
+        }
     });
     dom.toggleMembersBtn.style.display = members.length > 0 ? 'inline-block' : 'none';
 }
@@ -358,13 +362,13 @@ function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
-    
+
     // Add to body
     document.body.appendChild(notification);
-    
+
     // Show notification
     setTimeout(() => notification.classList.add('show'), 100);
-    
+
     // Remove after 3 seconds
     setTimeout(() => {
         notification.classList.remove('show');
@@ -374,7 +378,7 @@ function showNotification(message, type = 'info') {
 
 // This is a placeholder for the AI call.
 async function getAIWorkout(prompt) {
-    return new Promise(resolve => 
+    return new Promise(resolve =>
         setTimeout(() => resolve(
             `**AI Workout Response for:** ${prompt}\n\n` +
             `Warm-up (5 mins):\n- Light jogging in place\n- Arm circles\n- Leg swings\n\n` +
@@ -398,19 +402,19 @@ function setupEventListeners() {
     dom.memberFile.addEventListener('change', handleFileUpload);
     dom.todayRosterBtn.addEventListener('click', showTodayRoster);
     dom.rosterHistoryBtn.addEventListener('click', showRosterHistory);
-    
+
     // UI interactions
     dom.ptLocationSelect.addEventListener('change', function () {
         dom.customLocationInput.style.display = this.value === 'custom' ? 'block' : 'none';
     });
     dom.toggleMembersBtn.addEventListener('click', toggleMembersVisibility);
-    
+
     // Chat functionality
     dom.sendPromptBtn.addEventListener('click', handleSendPrompt);
     dom.aiPromptInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleSendPrompt();
     });
-    
+
     // Add member with Enter key
     dom.newMemberInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') addMember();
@@ -423,7 +427,7 @@ function setupEventListeners() {
 
 async function init() {
     console.log("Initializing PT Management System...");
-    
+
     // Set default date
     dom.ptDate.value = new Date().toISOString().split('T')[0];
 
@@ -434,12 +438,13 @@ async function init() {
     try {
         await loadData();
         setupRealtimeListener();
-        
+
         // Update UI after data loads
         updateUI();
+        showTodayRoster(); // Show today's roster by default
         updateWorkoutHistoryUI();
         updateReportsUI();
-        
+
         console.log("PT Management System initialized successfully!");
     } catch (error) {
         console.error("Error during initialization:", error);
@@ -457,20 +462,141 @@ if (document.readyState === 'loading') {
 function showTodayRoster() {
     dom.todayRosterContent.style.display = 'block';
     dom.rosterHistoryContent.style.display = 'none';
+    dom.todayRosterBtn.classList.add('active');
+    dom.rosterHistoryBtn.classList.remove('active');
     updateTodayRosterUI();
 }
 
 function showRosterHistory() {
     dom.todayRosterContent.style.display = 'none';
     dom.rosterHistoryContent.style.display = 'block';
+    dom.todayRosterBtn.classList.remove('active');
+    dom.rosterHistoryBtn.classList.add('active');
     updateRosterHistoryUI();
 }
 
 function updateTodayRosterUI() {
     const today = new Date().toISOString().split('T')[0];
-    // Implementation for showing today's roster
+    const todayRecord = attendanceRecords.find(record => record.date === today) || {
+        date: today,
+        attendance: {}
+    };
+
+    dom.attendanceList.innerHTML = '';
+
+    members.forEach(member => {
+        const attendanceItem = document.createElement('div');
+        attendanceItem.className = 'attendance-item';
+
+        const memberInfo = document.createElement('div');
+        memberInfo.innerHTML = `<strong>${member.name}</strong>${member.isPTLeader ? ' ⭐' : ''}`;
+
+        const controls = document.createElement('div');
+        controls.className = 'attendance-controls';
+
+        const currentStatus = todayRecord.attendance[member.name] || 'unknown';
+
+        // Present button
+        const presentBtn = document.createElement('button');
+        presentBtn.className = `status-btn status-present ${currentStatus === 'present' ? 'active' : ''}`;
+        presentBtn.textContent = 'Present';
+        presentBtn.onclick = () => updateAttendance(member.name, 'present');
+
+        // Absent button
+        const absentBtn = document.createElement('button');
+        absentBtn.className = `status-btn status-absent ${currentStatus === 'absent' ? 'active' : ''}`;
+        absentBtn.textContent = 'Absent';
+        absentBtn.onclick = () => updateAttendance(member.name, 'absent');
+
+        // Excused button
+        const excusedBtn = document.createElement('button');
+        excusedBtn.className = `status-btn status-excused ${currentStatus === 'excused' ? 'active' : ''}`;
+        excusedBtn.textContent = 'Excused';
+        excusedBtn.onclick = () => updateAttendance(member.name, 'excused');
+
+        controls.appendChild(presentBtn);
+        controls.appendChild(absentBtn);
+        controls.appendChild(excusedBtn);
+
+        attendanceItem.appendChild(memberInfo);
+        attendanceItem.appendChild(controls);
+        dom.attendanceList.appendChild(attendanceItem);
+    });
+
+    if (members.length === 0) {
+        dom.attendanceList.innerHTML = '<p>No members added yet. Add members in the Unit Setup section.</p>';
+    }
+}
+
+function updateAttendance(memberName, status) {
+    const today = new Date().toISOString().split('T')[0];
+    let todayRecord = attendanceRecords.find(record => record.date === today);
+
+    if (!todayRecord) {
+        todayRecord = {
+            date: today,
+            attendance: {}
+        };
+        attendanceRecords.push(todayRecord);
+    }
+
+    todayRecord.attendance[memberName] = status;
+    saveData();
+    updateTodayRosterUI();
+    showNotification(`${memberName} marked as ${status}`, 'success');
 }
 
 function updateRosterHistoryUI() {
-    // Implementation for showing roster history
+    dom.attendanceHistory.innerHTML = '';
+
+    if (attendanceRecords.length === 0) {
+        dom.attendanceHistory.innerHTML = '<p>No attendance records yet.</p>';
+        return;
+    }
+
+    // Sort records by date (newest first)
+    const sortedRecords = [...attendanceRecords].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    sortedRecords.forEach(record => {
+        const recordDiv = document.createElement('div');
+        recordDiv.className = 'history-record';
+        recordDiv.style.marginBottom = '20px';
+        recordDiv.style.padding = '15px';
+        recordDiv.style.border = '1px solid #ddd';
+        recordDiv.style.borderRadius = '8px';
+
+        const dateHeader = document.createElement('h4');
+        dateHeader.textContent = `Date: ${record.date}`;
+        recordDiv.appendChild(dateHeader);
+
+        const attendanceList = document.createElement('div');
+        attendanceList.style.display = 'grid';
+        attendanceList.style.gridTemplateColumns = 'repeat(auto-fill, minmax(200px, 1fr))';
+        attendanceList.style.gap = '10px';
+
+        Object.entries(record.attendance).forEach(([name, status]) => {
+            const item = document.createElement('div');
+            item.style.padding = '8px';
+            item.style.borderRadius = '4px';
+            item.style.display = 'flex';
+            item.style.justifyContent = 'space-between';
+
+            if (status === 'present') {
+                item.style.backgroundColor = '#d4edda';
+                item.style.color = '#155724';
+            } else if (status === 'absent') {
+                item.style.backgroundColor = '#f8d7da';
+                item.style.color = '#721c24';
+            } else if (status === 'excused') {
+                item.style.backgroundColor = '#d1ecf1';
+                item.style.color = '#0c5460';
+            }
+
+            item.innerHTML = `<span>${name}</span><span>${status.toUpperCase()}</span>`;
+            attendanceList.appendChild(item);
+        });
+
+        recordDiv.appendChild(attendanceList);
+        dom.attendanceHistory.appendChild(recordDiv);
+    });
 }
