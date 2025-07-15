@@ -219,7 +219,27 @@ function generateReport() {
         return;
     }
 
-    const reportText = `PT Report - ${name}\n\nDate: ${date}\nTime: ${time}\nLocation: ${loc}\n\nLeader: ${leader}\n\nWorkout Plan:\n${workout}`;
+    // Calculate attendance statistics
+    const attendanceStats = calculateAttendanceStats(date);
+    
+    const reportText = `PT Report - ${name}
+
+Date: ${date}
+Time: ${time}
+Location: ${loc}
+
+Leader: ${leader}
+
+Attendance Summary:
+Total Members: ${attendanceStats.total}
+Present: ${attendanceStats.present} (${attendanceStats.presentPercentage}%)
+Absent: ${attendanceStats.absent} (${attendanceStats.absentPercentage}%)
+Excused: ${attendanceStats.excused} (${attendanceStats.excusedPercentage}%)
+
+${attendanceStats.absentMembers.length > 0 ? `Absent Members:\n${attendanceStats.absentMembers.map(m => `- ${m.name}${m.alibi ? ` (${m.alibi})` : ''}`).join('\n')}\n` : ''}${attendanceStats.excusedMembers.length > 0 ? `Excused Members:\n${attendanceStats.excusedMembers.map(m => `- ${m.name}${m.alibi ? ` (${m.alibi})` : ''}`).join('\n')}\n` : ''}
+Workout Plan:
+${workout}`;
+
     dom.reportOutput.textContent = reportText;
     dom.copyReportBtn.style.display = 'inline-block';
 
@@ -228,13 +248,70 @@ function generateReport() {
         date: date,
         leader: leader,
         location: loc,
-        content: reportText
+        content: reportText,
+        attendanceStats: attendanceStats
     };
     savedReports.unshift(reportObject);
-    saveData(); // Save the new report to the backend
+    saveData();
     updateReportsUI();
 
-    showNotification("Report generated and saved!", "success");
+    showNotification("Report generated with attendance statistics!", "success");
+}
+function calculateAttendanceStats(date) {
+    const record = attendanceRecords.find(r => r.date === date);
+    const totalMembers = members.length;
+    
+    if (!record || totalMembers === 0) {
+        return {
+            total: totalMembers,
+            present: 0,
+            absent: 0,
+            excused: 0,
+            presentPercentage: 0,
+            absentPercentage: 0,
+            excusedPercentage: 0,
+            absentMembers: [],
+            excusedMembers: []
+        };
+    }
+
+    let presentCount = 0;
+    let absentCount = 0;
+    let excusedCount = 0;
+    const absentMembers = [];
+    const excusedMembers = [];
+
+    members.forEach(member => {
+        const attendanceData = record.attendance[member.name];
+        const status = typeof attendanceData === 'string' ? attendanceData : (attendanceData ? attendanceData.status : 'unknown');
+        const alibi = typeof attendanceData === 'object' ? attendanceData.alibi : '';
+
+        switch (status) {
+            case 'present':
+                presentCount++;
+                break;
+            case 'absent':
+                absentCount++;
+                absentMembers.push({ name: member.name, alibi });
+                break;
+            case 'excused':
+                excusedCount++;
+                excusedMembers.push({ name: member.name, alibi });
+                break;
+        }
+    });
+
+    return {
+        total: totalMembers,
+        present: presentCount,
+        absent: absentCount,
+        excused: excusedCount,
+        presentPercentage: totalMembers > 0 ? Math.round((presentCount / totalMembers) * 100) : 0,
+        absentPercentage: totalMembers > 0 ? Math.round((absentCount / totalMembers) * 100) : 0,
+        excusedPercentage: totalMembers > 0 ? Math.round((excusedCount / totalMembers) * 100) : 0,
+        absentMembers,
+        excusedMembers
+    };
 }
 
 function copyReportToClipboard() {
