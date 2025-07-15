@@ -436,3 +436,27 @@ input[type="file"] {
     border-color: var(--error-color) !important;
     box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.2) !important;
 }
+.manual-workout-container {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+#manualWorkoutInput {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 14px;
+    resize: vertical;
+    margin-bottom: 10px;
+    min-height: 150px;
+}
+
+#manualWorkoutInput:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(74, 105, 189, 0.2);
+}
