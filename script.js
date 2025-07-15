@@ -55,6 +55,8 @@ const dom = {
     rosterHistoryContent: document.getElementById('rosterHistoryContent'),
     attendanceList: document.getElementById('attendanceList'),
     attendanceHistory: document.getElementById('attendanceHistory'),
+    manualWorkoutInput: document.getElementById('manualWorkoutInput'),
+    setManualWorkoutBtn: document.getElementById('setManualWorkoutBtn'),
 };
 
 // =================================================================
@@ -402,6 +404,7 @@ function setupEventListeners() {
     dom.memberFile.addEventListener('change', handleFileUpload);
     dom.todayRosterBtn.addEventListener('click', showTodayRoster);
     dom.rosterHistoryBtn.addEventListener('click', showRosterHistory);
+    dom.setManualWorkoutBtn.addEventListener('click', setManualWorkout);
 
     // UI interactions
     dom.ptLocationSelect.addEventListener('change', function () {
@@ -693,4 +696,14 @@ function deleteAttendanceRecord(date) {
         updateRosterHistoryUI();
         showNotification(`Deleted attendance record for ${date}`, 'success');
     }
+}
+function setManualWorkout() {
+    const workoutText = dom.manualWorkoutInput.value.trim();
+    if (!workoutText) {
+        showNotification("Please enter a workout plan", "error");
+        return;
+    }
+    
+    confirmAndUseWorkout(workoutText);
+    dom.manualWorkoutInput.value = '';
 }
