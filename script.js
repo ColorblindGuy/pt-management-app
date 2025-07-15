@@ -540,63 +540,157 @@ function updateAttendance(memberName, status) {
         attendanceRecords.push(todayRecord);
     }
 
-    todayRecord.attendance[memberName] = status;
+    if (status === 'present') {
+        todayRecord.attendance[memberName] = 'present';
+    } else {
+        const currentData = todayRecord.attendance[memberName];
+        const currentAlibi = typeof currentData === 'object' ? currentData.alibi : '';
+        todayRecord.attendance[memberName] = {
+            status: status,
+            alibi: currentAlibi
+        };
+    }
+
     saveData();
     updateTodayRosterUI();
     showNotification(`${memberName} marked as ${status}`, 'success');
 }
 
-function updateRosterHistoryUI() {
-    dom.attendanceHistory.innerHTML = '';
+function updateAttendanceWithAlibi(memberName, status, alibi) {
+    const today = new Date().toISOString().split('T')[0];
+    let todayRecord = attendanceRecords.find(record => record.date === today);
 
-    if (attendanceRecords.length === 0) {
-        dom.attendanceHistory.innerHTML = '<p>No attendance records yet.</p>';
-        return;
+    if (todayRecord && todayRecord.attendance[memberName]) {
+        todayRecord.attendance[memberName] = {
+            status: status,
+            alibi: alibi
+        };
+        saveData();
+        showNotification(`Updated alibi for ${memberName}`, 'success');
     }
+}
 
-    // Sort records by date (newest first)
-    const sortedRecords = [...attendanceRecords].sort((a, b) => new Date(b.date) - new Date(a.date));
+function updateTodayRosterUI() {
+    const today = new Date().toISOString().split('T')[0];
+    const todayRecord = attendanceRecords.find(record => record.date === today) || {
+        date: today,
+        attendance: {}
+    };
 
-    sortedRecords.forEach(record => {
-        const recordDiv = document.createElement('div');
-        recordDiv.className = 'history-record';
-        recordDiv.style.marginBottom = '20px';
-        recordDiv.style.padding = '15px';
-        recordDiv.style.border = '1px solid #ddd';
-        recordDiv.style.borderRadius = '8px';
+    dom.attendanceList.innerHTML = '';
 
-        const dateHeader = document.createElement('h4');
-        dateHeader.textContent = `Date: ${record.date}`;
-        recordDiv.appendChild(dateHeader);
+    members.forEach(member => {
+        const attendanceItem = document.createElement('div');
+        attendanceItem.className = 'attendance-item';
+        attendanceItem.style.flexDirection = 'column';
+        attendanceItem.style.alignItems = 'stretch';
 
-        const attendanceList = document.createElement('div');
-        attendanceList.style.display = 'grid';
-        attendanceList.style.gridTemplateColumns = 'repeat(auto-fill, minmax(200px, 1fr))';
-        attendanceList.style.gap = '10px';
+        const topRow = document.createElement('div');
+        topRow.style.display = 'flex';
+        topRow.style.justifyContent = 'space-between';
+        topRow.style.alignItems = 'center';
 
-        Object.entries(record.attendance).forEach(([name, status]) => {
-            const item = document.createElement('div');
-            item.style.padding = '8px';
-            item.style.borderRadius = '4px';
-            item.style.display = 'flex';
-            item.style.justifyContent = 'space-between';
+        const memberInfo = document.createElement('div');
+        memberInfo.innerHTML = `<strong>${member.name}</strong>${member.isPTLeader ? ' ⭐' : ''}`;
 
-            if (status === 'present') {
-                item.style.backgroundColor = '#d4edda';
-                item.style.color = '#155724';
-            } else if (status === 'absent') {
-                item.style.backgroundColor = '#f8d7da';
-                item.style.color = '#721c24';
-            } else if (status === 'excused') {
-                item.style.backgroundColor = '#d1ecf1';
-                item.style.color = '#0c5460';
-            }
+        const controls = document.createElement('div');
+        controls.className = 'attendance-controls';
 
-            item.innerHTML = `<span>${name}</span><span>${status.toUpperCase()}</span>`;
-            attendanceList.appendChild(item);
-        });
+        const currentData = todayRecord.attendance[member.name] || 'unknown';
+        const currentStatus = typeof currentData === 'string' ? currentData : currentData.status;
+        const currentAlibi = typeof currentData === 'object' ? currentData.alibi : '';
 
-        recordDiv.appendChild(attendanceList);
-        dom.attendanceHistory.appendChild(recordDiv);
+        // Present button
+        const presentBtn = document.createElement('button');
+        presentBtn.className = `status-btn status-present ${currentStatus === 'present' ? 'active' : ''}`;
+        presentBtn.textContent = 'Present';
+        presentBtn.onclick = () => updateAttendance(member.name, 'present');
+
+        // Absent button
+        const absentBtn = document.createElement('button');
+        absentBtn.className = `status-btn status-absent ${currentStatus === 'absent' ? 'active' : ''}`;
+        absentBtn.textContent = 'Absent';
+        absentBtn.onclick = () => updateAttendance(member.name, 'absent');
+
+        // Excused button
+        const excusedBtn = document.createElement('button');
+        excusedBtn.className = `status-btn status-excused ${currentStatus === 'excused' ? 'active' : ''}`;
+        excusedBtn.textContent = 'Excused';
+        excusedBtn.onclick = () => updateAttendance(member.name, 'excused');
+
+        controls.appendChild(presentBtn);
+        controls.appendChild(absentBtn);
+        controls.appendChild(excusedBtn);
+
+        topRow.appendChild(memberInfo);
+        topRow.appendChild(controls);
+        attendanceItem.appendChild(topRow);
+
+        // Alibi input (show only if not present)
+        if (currentStatus !== 'present' && currentStatus !== 'unknown') {
+            const alibiRow = document.createElement('div');
+            alibiRow.style.marginTop = '10px';
+            
+            const alibiInput = document.createElement('input');
+            alibiInput.type = 'text';
+            alibiInput.placeholder = 'Alibi/Reason (optional)';
+            alibiInput.value = currentAlibi || '';
+            alibiInput.style.width = '100%';
+            alibiInput.style.padding = '8px';
+            alibiInput.style.fontSize = '14px';
+            alibiInput.onchange = () => updateAttendanceWithAlibi(member.name, currentStatus, alibiInput.value);
+            
+            alibiRow.appendChild(alibiInput);
+            attendanceItem.appendChild(alibiRow);
+        }
+
+        dom.attendanceList.appendChild(attendanceItem);
     });
+
+    if (members.length === 0) {
+        dom.attendanceList.innerHTML = '<p>No members added yet. Add members in the Unit Setup section.</p>';
+    }
+}
+
+function updateHistoryAttendance(date, memberName, newStatus) {
+    const record = attendanceRecords.find(r => r.date === date);
+    if (record) {
+        const currentData = record.attendance[memberName];
+        const alibi = typeof currentData === 'object' ? currentData.alibi : '';
+        
+        record.attendance[memberName] = newStatus === 'present' ? 'present' : {
+            status: newStatus,
+            alibi: alibi
+        };
+        
+        saveData();
+        updateRosterHistoryUI();
+        showNotification(`Updated ${memberName}'s attendance for ${date}`, 'success');
+    }
+}
+
+function updateHistoryAlibi(date, memberName, alibi) {
+    const record = attendanceRecords.find(r => r.date === date);
+    if (record) {
+        const currentData = record.attendance[memberName];
+        const status = typeof currentData === 'string' ? currentData : currentData.status;
+        
+        if (status !== 'present') {
+            record.attendance[memberName] = {
+                status: status,
+                alibi: alibi
+            };
+            saveData();
+            showNotification(`Updated alibi for ${memberName}`, 'success');
+        }
+    }
+}
+
+function deleteAttendanceRecord(date) {
+    if (confirm(`Are you sure you want to delete the attendance record for ${date}?`)) {
+        attendanceRecords = attendanceRecords.filter(record => record.date !== date);
+        saveData();
+        updateRosterHistoryUI();
+        showNotification(`Deleted attendance record for ${date}`, 'success');
+    }
 }
