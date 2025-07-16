@@ -404,22 +404,27 @@ function updateUI() {
 function updateWorkoutHistoryUI() {
     dom.workoutHistoryList.innerHTML = '';
 
-    if (workoutHistory.length === 0) {
+    if (!Array.isArray(workoutHistory) || workoutHistory.length === 0) {
         dom.workoutHistoryList.innerHTML = '<li>No workout history available.</li>';
         return;
     }
 
     // Sort by date (newest first)
     const sortedHistory = [...workoutHistory].sort((a, b) => {
-        const dateA = typeof a === 'object' && a.date ? new Date(a.date) : new Date(0);
-        const dateB = typeof b === 'object' && b.date ? new Date(b.date) : new Date(0);
+        const dateA = typeof a === 'object' && a && a.date ? new Date(a.date) : new Date(0);
+        const dateB = typeof b === 'object' && b && b.date ? new Date(b.date) : new Date(0);
         return dateB - dateA;
     });
 
     sortedHistory.forEach((workout, index) => {
+        if (workout === undefined || workout === null) return;
+
         const isObj = typeof workout === 'object' && workout !== null;
         const workoutText = isObj ? workout.workout : workout;
         const workoutDate = isObj && workout.date ? workout.date : 'Unknown Date';
+
+        // Skip if workoutText is not a string
+        if (typeof workoutText !== 'string') return;
 
         const li = document.createElement('li');
         li.style.display = 'flex';
@@ -429,7 +434,7 @@ function updateWorkoutHistoryUI() {
         li.style.borderBottom = '1px solid #e0e0e0';
 
         const workoutInfo = document.createElement('div');
-        workoutInfo.innerHTML = `<strong>${workoutDate}</strong><br><small>${workoutText ? workoutText.substring(0, 100) : ''}${workoutText && workoutText.length > 100 ? '...' : ''}</small>`;
+        workoutInfo.innerHTML = `<strong>${workoutDate}</strong><br><small>${workoutText.substring(0, 100)}${workoutText.length > 100 ? '...' : ''}</small>`;
 
         const actions = document.createElement('div');
         actions.style.display = 'flex';
