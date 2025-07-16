@@ -101,30 +101,8 @@ async function loadData() {
             workoutHistory = data.workoutHistory || [];
             savedReports = data.savedReports || [];
             attendanceRecords = data.attendanceRecords || [];
-            
-            // Clean workout history immediately after loading
-            if (Array.isArray(workoutHistory)) {
-                const originalLength = workoutHistory.length;
-                workoutHistory = workoutHistory.filter(entry => {
-                    if (!entry) return false;
-                    if (typeof entry === 'string') return true;
-                    if (typeof entry === 'object' && entry !== null && typeof entry.workout === 'string') return true;
-                    return false;
-                });
-                
-                // If we cleaned out invalid entries, save the cleaned data
-                if (workoutHistory.length !== originalLength) {
-                    console.log(`Cleaned ${originalLength - workoutHistory.length} invalid workout entries`);
-                    // Save the cleaned data back to Firestore
-                    saveData();
-                }
-            }
             console.log("Data loaded successfully from the live database!");
             showNotification("Data loaded from server!", "success");
-            // Only update UI after cleaning
-            updateUI();
-            updateWorkoutHistoryUI();
-            updateReportsUI();
         } else {
             console.log("No data found on server. Initializing new document.");
             // Creates the document if it's the first time running the app
@@ -425,84 +403,49 @@ function updateUI() {
 
 function updateWorkoutHistoryUI() {
     dom.workoutHistoryList.innerHTML = '';
-
-    if (!Array.isArray(workoutHistory) || workoutHistory.length === 0) {
+    
+    if (workoutHistory.length === 0) {
         dom.workoutHistoryList.innerHTML = '<li>No workout history available.</li>';
         return;
     }
-
-    // Clean and filter the workout history to remove invalid entries
-    const validWorkouts = workoutHistory.filter(workout => {
-        if (!workout) return false;
-        if (typeof workout === 'string') return true;
-        if (typeof workout === 'object' && workout !== null && typeof workout.workout === 'string') return true;
-        return false;
-    });
-
-    if (validWorkouts.length === 0) {
-        dom.workoutHistoryList.innerHTML = '<li>No valid workout history available.</li>';
-        return;
-    }
-
+    
     // Sort by date (newest first)
-    const sortedHistory = [...validWorkouts].sort((a, b) => {
-        const dateA = typeof a === 'object' && a && a.date ? new Date(a.date) : new Date(0);
-        const dateB = typeof b === 'object' && b && b.date ? new Date(b.date) : new Date(0);
-        return dateB - dateA;
-    });
-
-    sortedHistory.forEach((workout, originalIndex) => {
-        const isObj = typeof workout === 'object' && workout !== null;
-        const workoutText = isObj ? workout.workout : workout;
-        const workoutDate = isObj && workout.date ? workout.date : 'Unknown Date';
-
-        // Additional safety check
-        if (!workoutText || typeof workoutText !== 'string') {
-            console.warn('Skipping invalid workout entry:', workout);
-            return;
-        }
-
+    const sortedHistory = [...workoutHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    sortedHistory.forEach((workout, index) => {
         const li = document.createElement('li');
         li.style.display = 'flex';
         li.style.justifyContent = 'space-between';
         li.style.alignItems = 'center';
         li.style.padding = '10px';
         li.style.borderBottom = '1px solid #e0e0e0';
-
+        
         const workoutInfo = document.createElement('div');
-        workoutInfo.innerHTML = `<strong>${workoutDate}</strong><br><small>${workoutText.substring(0, 100)}${workoutText.length > 100 ? '...' : ''}</small>`;
-
+        workoutInfo.innerHTML = `<strong>${workout.date}</strong><br><small>${workout.workout.substring(0, 100)}${workout.workout.length > 100 ? '...' : ''}</small>`;
+        
         const actions = document.createElement('div');
         actions.style.display = 'flex';
         actions.style.gap = '5px';
-
+        
         // Use button
         const useBtn = document.createElement('button');
         useBtn.textContent = 'Use';
         useBtn.className = 'btn btn-small';
         useBtn.style.fontSize = '10px';
         useBtn.style.padding = '3px 8px';
-        useBtn.onclick = () => confirmAndUseWorkout(workoutText);
-
-        // Delete button - find the original index in the full array
+        useBtn.onclick = () => confirmAndUseWorkout(workout.workout);
+        
+        // Delete button
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = '🗑️';
         deleteBtn.className = 'btn btn-secondary';
         deleteBtn.style.fontSize = '10px';
         deleteBtn.style.padding = '3px 6px';
-        deleteBtn.onclick = () => {
-            // Find the original index in the workoutHistory array
-            const originalWorkoutIndex = workoutHistory.findIndex(w => 
-                JSON.stringify(w) === JSON.stringify(workout)
-            );
-            if (originalWorkoutIndex !== -1) {
-                deleteWorkout(originalWorkoutIndex);
-            }
-        };
-
+        deleteBtn.onclick = () => deleteWorkout(index);
+        
         actions.appendChild(useBtn);
         actions.appendChild(deleteBtn);
-
+        
         li.appendChild(workoutInfo);
         li.appendChild(actions);
         dom.workoutHistoryList.appendChild(li);
@@ -667,14 +610,6 @@ async function init() {
         console.error("Error during initialization:", error);
         showNotification("Error initializing app. Check console for details.", "error");
     }
-  // Clean up workout history on initialization
-  if (Array.isArray(workoutHistory)) {
-      workoutHistory = workoutHistory.filter(entry => {
-          if (typeof entry === 'string') return true;
-          if (typeof entry === 'object' && entry !== null && typeof entry.workout === 'string') return true;
-          return false;
-      });
-  }
 }
 
 // Start the application when DOM is ready
@@ -886,6 +821,203 @@ function updateAttendanceWithAlibi(memberName, status, alibi) {
     }
 }
 
+function updateTodayRosterUI() {
+    const today = new Date().toISOString().split('T')[0];
+    const todayRecord = attendanceRecords.find(record => record.date === today) || {
+        date: today,
+        attendance: {}
+    };
+
+    dom.attendanceList.innerHTML = '';
+
+    // Create table structure
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.style.marginTop = '10px';
+    
+    // Create header
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    headerRow.innerHTML = `
+        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd; background-color: #f8f9fa;">Member</th>
+        <th style="text-align: center; padding: 12px; border-bottom: 2px solid #ddd; background-color: #f8f9fa;">Status</th>
+        <th style="text-align: center; padding: 12px; border-bottom: 2px solid #ddd; background-color: #f8f9fa;">Actions</th>
+    `;
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // Create table body
+    const tbody = document.createElement('tbody');
+
+    members.forEach(member => {
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid #eee';
+        
+        const currentData = todayRecord.attendance[member.name] || 'unknown';
+        const currentStatus = typeof currentData === 'string' ? currentData : currentData.status;
+        const currentAlibi = typeof currentData === 'object' ? currentData.alibi : '';
+
+        // Member name cell
+        const nameCell = document.createElement('td');
+        nameCell.style.padding = '12px';
+        nameCell.innerHTML = `<strong>${member.name}</strong>${member.isPTLeader ? ' ⭐' : ''}`;
+        
+        // Status cell with icon
+        const statusCell = document.createElement('td');
+        statusCell.style.textAlign = 'center';
+        statusCell.style.padding = '12px';
+        
+        let statusIcon = '';
+        let statusColor = '';
+        let statusText = '';
+        
+        switch(currentStatus) {
+            case 'present':
+                statusIcon = '✅';
+                statusColor = '#28a745';
+                statusText = 'Present';
+                break;
+            case 'absent':
+                statusIcon = '❌';
+                statusColor = '#dc3545';
+                statusText = 'Absent';
+                break;
+            case 'excused':
+                statusIcon = '🔵';
+                statusColor = '#17a2b8';
+                statusText = 'Excused';
+                break;
+            default:
+                statusIcon = '⚪';
+                statusColor = '#6c757d';
+                statusText = 'Not Marked';
+        }
+        
+        statusCell.innerHTML = `<span style="font-size: 18px;">${statusIcon}</span><br><small style="color: ${statusColor}; font-weight: bold;">${statusText}</small>`;
+        
+        // Actions cell
+        const actionsCell = document.createElement('td');
+        actionsCell.style.textAlign = 'center';
+        actionsCell.style.padding = '12px';
+        
+        const actionButtons = document.createElement('div');
+        actionButtons.style.display = 'flex';
+        actionButtons.style.gap = '5px';
+        actionButtons.style.justifyContent = 'center';
+        
+        // Present button
+        const presentBtn = document.createElement('button');
+        presentBtn.className = `status-btn status-present ${currentStatus === 'present' ? 'active' : ''}`;
+        presentBtn.textContent = 'Present';
+        presentBtn.style.fontSize = '11px';
+        presentBtn.style.padding = '4px 8px';
+        presentBtn.onclick = () => updateAttendance(member.name, 'present');
+        
+        // Absent button
+        const absentBtn = document.createElement('button');
+        absentBtn.className = `status-btn status-absent ${currentStatus === 'absent' ? 'active' : ''}`;
+        absentBtn.textContent = 'Absent';
+        absentBtn.style.fontSize = '11px';
+        absentBtn.style.padding = '4px 8px';
+        absentBtn.onclick = () => updateAttendance(member.name, 'absent');
+        
+        // Excused button
+        const excusedBtn = document.createElement('button');
+        excusedBtn.className = `status-btn status-excused ${currentStatus === 'excused' ? 'active' : ''}`;
+        excusedBtn.textContent = 'Excused';
+        excusedBtn.style.fontSize = '11px';
+        excusedBtn.style.padding = '4px 8px';
+        excusedBtn.onclick = () => updateAttendance(member.name, 'excused');
+        
+        actionButtons.appendChild(presentBtn);
+        actionButtons.appendChild(absentBtn);
+        actionButtons.appendChild(excusedBtn);
+        actionsCell.appendChild(actionButtons);
+        
+        row.appendChild(nameCell);
+        row.appendChild(statusCell);
+        row.appendChild(actionsCell);
+        tbody.appendChild(row);
+        
+        // Add alibi row if needed
+        if (currentStatus !== 'present' && currentStatus !== 'unknown' && currentAlibi) {
+            const alibiRow = document.createElement('tr');
+            alibiRow.style.backgroundColor = '#f8f9fa';
+            
+            const alibiCell = document.createElement('td');
+            alibiCell.colSpan = 3;
+            alibiCell.style.padding = '8px 12px';
+            alibiCell.style.fontSize = '12px';
+            alibiCell.style.color = '#666';
+            alibiCell.innerHTML = `<em>Alibi: ${currentAlibi}</em>`;
+            
+            alibiRow.appendChild(alibiCell);
+            tbody.appendChild(alibiRow);
+        }
+    });
+
+    table.appendChild(tbody);
+    dom.attendanceList.appendChild(table);
+
+    if (members.length === 0) {
+        dom.attendanceList.innerHTML = '<p>No members added yet. Add members in the Unit Setup section.</p>';
+    }
+}
+
+function updateHistoryAttendance(date, memberName, newStatus) {
+    const record = attendanceRecords.find(r => r.date === date);
+    if (record) {
+        const currentData = record.attendance[memberName];
+        const alibi = typeof currentData === 'object' ? currentData.alibi : '';
+        
+        record.attendance[memberName] = newStatus === 'present' ? 'present' : {
+            status: newStatus,
+            alibi: alibi
+        };
+        
+        saveData();
+        updateRosterHistoryUI();
+        showNotification(`Updated ${memberName}'s attendance for ${date}`, 'success');
+    }
+}
+
+function updateHistoryAlibi(date, memberName, alibi) {
+    const record = attendanceRecords.find(r => r.date === date);
+    if (record) {
+        const currentData = record.attendance[memberName];
+        const status = typeof currentData === 'string' ? currentData : currentData.status;
+        
+        if (status !== 'present') {
+            record.attendance[memberName] = {
+                status: status,
+                alibi: alibi
+            };
+            saveData();
+            showNotification(`Updated alibi for ${memberName}`, 'success');
+        }
+    }
+}
+
+function deleteAttendanceRecord(date) {
+    if (confirm(`Are you sure you want to delete the attendance record for ${date}?`)) {
+        attendanceRecords = attendanceRecords.filter(record => record.date !== date);
+        saveData();
+        updateRosterHistoryUI();
+        showNotification(`Deleted attendance record for ${date}`, 'success');
+    }
+}
+function setManualWorkout() {
+    const workoutText = dom.manualWorkoutInput.value.trim();
+    if (!workoutText) {
+        showNotification("Please enter a workout plan", "error");
+        return;
+    }
+    
+    confirmAndUseWorkout(workoutText);
+    dom.manualWorkoutInput.value = '';
+}
+
 function updateRosterHistoryUI() {
     dom.attendanceHistory.innerHTML = '';
     
@@ -1038,119 +1170,37 @@ function updateRosterHistoryUI() {
     });
 }
 
-function deleteAttendanceRecord(date) {
-    if (confirm(`Are you sure you want to delete the attendance record for ${date}?`)) {
-        attendanceRecords = attendanceRecords.filter(record => record.date !== date);
+function deleteWorkout(index) {
+    if (confirm('Are you sure you want to delete this workout?')) {
+        workoutHistory.splice(index, 1);
         saveData();
-        updateRosterHistoryUI();
-        showNotification(`Deleted attendance record for ${date}`, 'success');
+        updateWorkoutHistoryUI();
+        showNotification('Workout deleted successfully!', 'success');
     }
 }
 
-function setManualWorkout() {
-    const workoutText = dom.manualWorkoutInput.value.trim();
-    if (!workoutText) {
-        showNotification("Please enter a workout plan", "error");
-        return;
-    }
-    
-    confirmAndUseWorkout(workoutText);
-    dom.manualWorkoutInput.value = '';
-}
+function handleWorkoutFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
 
-function updateWorkoutHistoryUI() {
-    dom.workoutHistoryList.innerHTML = '';
-
-    if (!Array.isArray(workoutHistory) || workoutHistory.length === 0) {
-        dom.workoutHistoryList.innerHTML = '<li>No workout history available.</li>';
-        return;
-    }
-
-    // Clean and filter the workout history to remove invalid entries
-    const validWorkouts = workoutHistory.filter(workout => {
-        if (!workout) return false;
-        if (typeof workout === 'string') return true;
-        if (typeof workout === 'object' && workout !== null && typeof workout.workout === 'string') return true;
-        return false;
-    });
-
-    if (validWorkouts.length === 0) {
-        dom.workoutHistoryList.innerHTML = '<li>No valid workout history available.</li>';
-        return;
-    }
-
-    // Sort by date (newest first)
-    const sortedHistory = [...validWorkouts].sort((a, b) => {
-        const dateA = typeof a === 'object' && a && a.date ? new Date(a.date) : new Date(0);
-        const dateB = typeof b === 'object' && b && b.date ? new Date(b.date) : new Date(0);
-        return dateB - dateA;
-    });
-
-    sortedHistory.forEach((workout, originalIndex) => {
-        const isObj = typeof workout === 'object' && workout !== null;
-        const workoutText = isObj ? workout.workout : workout;
-        const workoutDate = isObj && workout.date ? workout.date : 'Unknown Date';
-
-        // Additional safety check
-        if (!workoutText || typeof workoutText !== 'string') {
-            console.warn('Skipping invalid workout entry:', workout);
-            return;
-        }
-
-        const li = document.createElement('li');
-        li.style.display = 'flex';
-        li.style.justifyContent = 'space-between';
-        li.style.alignItems = 'center';
-        li.style.padding = '10px';
-        li.style.borderBottom = '1px solid #e0e0e0';
-
-        const workoutInfo = document.createElement('div');
-        workoutInfo.innerHTML = `<strong>${workoutDate}</strong><br><small>${workoutText.substring(0, 100)}${workoutText.length > 100 ? '...' : ''}</small>`;
-
-        const actions = document.createElement('div');
-        actions.style.display = 'flex';
-        actions.style.gap = '5px';
-
-        // Use button
-        const useBtn = document.createElement('button');
-        useBtn.textContent = 'Use';
-        useBtn.className = 'btn btn-small';
-        useBtn.style.fontSize = '10px';
-        useBtn.style.padding = '3px 8px';
-        useBtn.onclick = () => confirmAndUseWorkout(workoutText);
-
-        // Delete button - find the original index in the full array
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = '🗑️';
-        deleteBtn.className = 'btn btn-secondary';
-        deleteBtn.style.fontSize = '10px';
-        deleteBtn.style.padding = '3px 6px';
-        deleteBtn.onclick = () => {
-            // Find the original index in the workoutHistory array
-            const originalWorkoutIndex = workoutHistory.findIndex(w => 
-                JSON.stringify(w) === JSON.stringify(workout)
-            );
-            if (originalWorkoutIndex !== -1) {
-                deleteWorkout(originalWorkoutIndex);
-            }
-        };
-
-        actions.appendChild(useBtn);
-        actions.appendChild(deleteBtn);
-
-        li.appendChild(workoutInfo);
-        li.appendChild(actions);
-        dom.workoutHistoryList.appendChild(li);
-    });
-}
-
-function cleanWorkoutHistory() {
-    if (!Array.isArray(workoutHistory)) return;
-    // Only keep valid entries: objects with a string workout, or strings
-    workoutHistory = workoutHistory.filter(entry => {
-        if (typeof entry === 'string') return true;
-        if (typeof entry === 'object' && entry !== null && typeof entry.workout === 'string') return true;
-        return false;
-    });
-    saveData();
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const workoutText = e.target.result;
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Add to workout history
+        workoutHistory.push({
+            date: today,
+            workout: workoutText,
+            source: 'file_upload'
+        });
+        
+        // Set as today's workout
+        confirmAndUseWorkout(workoutText);
+        
+        saveData();
+        updateWorkoutHistoryUI();
+        showNotification('Workout uploaded and set as today\'s workout!', 'success');
+    };
+    reader.readAsText(file);
 }
