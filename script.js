@@ -102,9 +102,25 @@ async function loadData() {
             savedReports = data.savedReports || [];
             attendanceRecords = data.attendanceRecords || [];
             // CLEAN THE WORKOUT HISTORY
-            cleanWorkoutHistory();
+            let cleaned = false;
+            if (Array.isArray(workoutHistory)) {
+                const originalLength = workoutHistory.length;
+                workoutHistory = workoutHistory.filter(entry => {
+                    if (typeof entry === 'string') return true;
+                    if (typeof entry === 'object' && entry !== null && typeof entry.workout === 'string') return true;
+                    return false;
+                });
+                if (workoutHistory.length !== originalLength) {
+                    cleaned = true;
+                    await unitDataRef.update({ workoutHistory });
+                }
+            }
             console.log("Data loaded successfully from the live database!");
             showNotification("Data loaded from server!", "success");
+            // Only update UI after cleaning
+            updateUI();
+            updateWorkoutHistoryUI();
+            updateReportsUI();
         } else {
             console.log("No data found on server. Initializing new document.");
             // Creates the document if it's the first time running the app
