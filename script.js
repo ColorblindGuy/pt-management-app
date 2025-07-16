@@ -403,38 +403,46 @@ function updateUI() {
 
 function updateWorkoutHistoryUI() {
     dom.workoutHistoryList.innerHTML = '';
-    
+
     if (workoutHistory.length === 0) {
         dom.workoutHistoryList.innerHTML = '<li>No workout history available.</li>';
         return;
     }
-    
+
     // Sort by date (newest first)
-    const sortedHistory = [...workoutHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
-    
+    const sortedHistory = [...workoutHistory].sort((a, b) => {
+        const dateA = typeof a === 'object' && a.date ? new Date(a.date) : new Date(0);
+        const dateB = typeof b === 'object' && b.date ? new Date(b.date) : new Date(0);
+        return dateB - dateA;
+    });
+
     sortedHistory.forEach((workout, index) => {
+        const isObj = typeof workout === 'object' && workout !== null;
+        const workoutText = isObj ? workout.workout : workout;
+        const workoutDate = isObj && workout.date ? workout.date : 'Unknown Date';
+
         const li = document.createElement('li');
         li.style.display = 'flex';
         li.style.justifyContent = 'space-between';
         li.style.alignItems = 'center';
         li.style.padding = '10px';
         li.style.borderBottom = '1px solid #e0e0e0';
-        
+
         const workoutInfo = document.createElement('div');
-        workoutInfo.innerHTML = `<strong>${workout.date}</strong><br><small>${workout.workout.substring(0, 100)}${workout.workout.length > 100 ? '...' : ''}</small>`;
-        
+        workoutInfo.innerHTML = `<strong>${workoutDate}</strong><br><small>${workoutText ? workoutText.substring(0, 100) : ''}${workoutText && workoutText.length > 100 ? '...' : ''}</small>`;
+
         const actions = document.createElement('div');
         actions.style.display = 'flex';
         actions.style.gap = '5px';
-        
+
         // Use button
         const useBtn = document.createElement('button');
         useBtn.textContent = 'Use';
         useBtn.className = 'btn btn-small';
         useBtn.style.fontSize = '10px';
         useBtn.style.padding = '3px 8px';
-        useBtn.onclick = () => confirmAndUseWorkout(workout.workout);
-        
+        useBtn.onclick = () => confirmAndUseWorkout(workoutText);
+
         // Delete button
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = '🗑️';
@@ -442,10 +450,10 @@ function updateWorkoutHistoryUI() {
         deleteBtn.style.fontSize = '10px';
         deleteBtn.style.padding = '3px 6px';
         deleteBtn.onclick = () => deleteWorkout(index);
-        
+
         actions.appendChild(useBtn);
         actions.appendChild(deleteBtn);
-        
+
         li.appendChild(workoutInfo);
         li.appendChild(actions);
         dom.workoutHistoryList.appendChild(li);
@@ -1078,3 +1086,4 @@ function handleWorkoutFileUpload(event) {
     };
     reader.readAsText(file);
 }
+
