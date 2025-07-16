@@ -101,18 +101,22 @@ async function loadData() {
             workoutHistory = data.workoutHistory || [];
             savedReports = data.savedReports || [];
             attendanceRecords = data.attendanceRecords || [];
-            // CLEAN THE WORKOUT HISTORY
-            let cleaned = false;
+            
+            // Clean workout history immediately after loading
             if (Array.isArray(workoutHistory)) {
                 const originalLength = workoutHistory.length;
                 workoutHistory = workoutHistory.filter(entry => {
+                    if (!entry) return false;
                     if (typeof entry === 'string') return true;
                     if (typeof entry === 'object' && entry !== null && typeof entry.workout === 'string') return true;
                     return false;
                 });
+                
+                // If we cleaned out invalid entries, save the cleaned data
                 if (workoutHistory.length !== originalLength) {
-                    cleaned = true;
-                    await unitDataRef.update({ workoutHistory });
+                    console.log(`Cleaned ${originalLength - workoutHistory.length} invalid workout entries`);
+                    // Save the cleaned data back to Firestore
+                    saveData();
                 }
             }
             console.log("Data loaded successfully from the live database!");
@@ -447,7 +451,7 @@ function updateWorkoutHistoryUI() {
         return dateB - dateA;
     });
 
-    sortedHistory.forEach((workout, index) => {
+    sortedHistory.forEach((workout, originalIndex) => {
         const isObj = typeof workout === 'object' && workout !== null;
         const workoutText = isObj ? workout.workout : workout;
         const workoutDate = isObj && workout.date ? workout.date : 'Unknown Date';
@@ -480,13 +484,21 @@ function updateWorkoutHistoryUI() {
         useBtn.style.padding = '3px 8px';
         useBtn.onclick = () => confirmAndUseWorkout(workoutText);
 
-        // Delete button
+        // Delete button - find the original index in the full array
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = '🗑️';
         deleteBtn.className = 'btn btn-secondary';
         deleteBtn.style.fontSize = '10px';
         deleteBtn.style.padding = '3px 6px';
-        deleteBtn.onclick = () => deleteWorkout(index);
+        deleteBtn.onclick = () => {
+            // Find the original index in the workoutHistory array
+            const originalWorkoutIndex = workoutHistory.findIndex(w => 
+                JSON.stringify(w) === JSON.stringify(workout)
+            );
+            if (originalWorkoutIndex !== -1) {
+                deleteWorkout(originalWorkoutIndex);
+            }
+        };
 
         actions.appendChild(useBtn);
         actions.appendChild(deleteBtn);
@@ -1048,88 +1060,88 @@ function setManualWorkout() {
 
 function updateWorkoutHistoryUI() {
     dom.workoutHistoryList.innerHTML = '';
-    
-    if (workoutHistory.length === 0) {
+
+    if (!Array.isArray(workoutHistory) || workoutHistory.length === 0) {
         dom.workoutHistoryList.innerHTML = '<li>No workout history available.</li>';
         return;
     }
-    
+
+    // Clean and filter the workout history to remove invalid entries
+    const validWorkouts = workoutHistory.filter(workout => {
+        if (!workout) return false;
+        if (typeof workout === 'string') return true;
+        if (typeof workout === 'object' && workout !== null && typeof workout.workout === 'string') return true;
+        return false;
+    });
+
+    if (validWorkouts.length === 0) {
+        dom.workoutHistoryList.innerHTML = '<li>No valid workout history available.</li>';
+        return;
+    }
+
     // Sort by date (newest first)
-    const sortedHistory = [...workoutHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
-    
-    sortedHistory.forEach((workout, index) => {
+    const sortedHistory = [...validWorkouts].sort((a, b) => {
+        const dateA = typeof a === 'object' && a && a.date ? new Date(a.date) : new Date(0);
+        const dateB = typeof b === 'object' && b && b.date ? new Date(b.date) : new Date(0);
+        return dateB - dateA;
+    });
+
+    sortedHistory.forEach((workout, originalIndex) => {
+        const isObj = typeof workout === 'object' && workout !== null;
+        const workoutText = isObj ? workout.workout : workout;
+        const workoutDate = isObj && workout.date ? workout.date : 'Unknown Date';
+
+        // Additional safety check
+        if (!workoutText || typeof workoutText !== 'string') {
+            console.warn('Skipping invalid workout entry:', workout);
+            return;
+        }
+
         const li = document.createElement('li');
         li.style.display = 'flex';
         li.style.justifyContent = 'space-between';
         li.style.alignItems = 'center';
         li.style.padding = '10px';
         li.style.borderBottom = '1px solid #e0e0e0';
-        
+
         const workoutInfo = document.createElement('div');
-        workoutInfo.innerHTML = `<strong>${workout.date}</strong><br><small>${workout.workout.substring(0, 100)}${workout.workout.length > 100 ? '...' : ''}</small>`;
-        
+        workoutInfo.innerHTML = `<strong>${workoutDate}</strong><br><small>${workoutText.substring(0, 100)}${workoutText.length > 100 ? '...' : ''}</small>`;
+
         const actions = document.createElement('div');
         actions.style.display = 'flex';
         actions.style.gap = '5px';
-        
+
         // Use button
         const useBtn = document.createElement('button');
         useBtn.textContent = 'Use';
         useBtn.className = 'btn btn-small';
         useBtn.style.fontSize = '10px';
         useBtn.style.padding = '3px 8px';
-        useBtn.onclick = () => confirmAndUseWorkout(workout.workout);
-        
-        // Delete button
+        useBtn.onclick = () => confirmAndUseWorkout(workoutText);
+
+        // Delete button - find the original index in the full array
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = '🗑️';
         deleteBtn.className = 'btn btn-secondary';
         deleteBtn.style.fontSize = '10px';
         deleteBtn.style.padding = '3px 6px';
-        deleteBtn.onclick = () => deleteWorkout(index);
-        
+        deleteBtn.onclick = () => {
+            // Find the original index in the workoutHistory array
+            const originalWorkoutIndex = workoutHistory.findIndex(w => 
+                JSON.stringify(w) === JSON.stringify(workout)
+            );
+            if (originalWorkoutIndex !== -1) {
+                deleteWorkout(originalWorkoutIndex);
+            }
+        };
+
         actions.appendChild(useBtn);
         actions.appendChild(deleteBtn);
-        
+
         li.appendChild(workoutInfo);
         li.appendChild(actions);
         dom.workoutHistoryList.appendChild(li);
     });
-}
-
-function deleteWorkout(index) {
-    if (confirm('Are you sure you want to delete this workout?')) {
-        workoutHistory.splice(index, 1);
-        saveData();
-        updateWorkoutHistoryUI();
-        showNotification('Workout deleted successfully!', 'success');
-    }
-}
-
-function handleWorkoutFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const workoutText = e.target.result;
-        const today = new Date().toISOString().split('T')[0];
-        
-        // Add to workout history
-        workoutHistory.push({
-            date: today,
-            workout: workoutText,
-            source: 'file_upload'
-        });
-        
-        // Set as today's workout
-        confirmAndUseWorkout(workoutText);
-        
-        saveData();
-        updateWorkoutHistoryUI();
-        showNotification('Workout uploaded and set as today\'s workout!', 'success');
-    };
-    reader.readAsText(file);
 }
 
 function cleanWorkoutHistory() {
