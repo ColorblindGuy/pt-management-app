@@ -427,22 +427,36 @@ function updateWorkoutHistoryUI() {
         return;
     }
 
+    // Clean and filter the workout history to remove invalid entries
+    const validWorkouts = workoutHistory.filter(workout => {
+        if (!workout) return false;
+        if (typeof workout === 'string') return true;
+        if (typeof workout === 'object' && workout !== null && typeof workout.workout === 'string') return true;
+        return false;
+    });
+
+    if (validWorkouts.length === 0) {
+        dom.workoutHistoryList.innerHTML = '<li>No valid workout history available.</li>';
+        return;
+    }
+
     // Sort by date (newest first)
-    const sortedHistory = [...workoutHistory].sort((a, b) => {
+    const sortedHistory = [...validWorkouts].sort((a, b) => {
         const dateA = typeof a === 'object' && a && a.date ? new Date(a.date) : new Date(0);
         const dateB = typeof b === 'object' && b && b.date ? new Date(b.date) : new Date(0);
         return dateB - dateA;
     });
 
     sortedHistory.forEach((workout, index) => {
-        if (workout === undefined || workout === null) return;
-
         const isObj = typeof workout === 'object' && workout !== null;
         const workoutText = isObj ? workout.workout : workout;
         const workoutDate = isObj && workout.date ? workout.date : 'Unknown Date';
 
-        // Skip if workoutText is not a string
-        if (typeof workoutText !== 'string') return;
+        // Additional safety check
+        if (!workoutText || typeof workoutText !== 'string') {
+            console.warn('Skipping invalid workout entry:', workout);
+            return;
+        }
 
         const li = document.createElement('li');
         li.style.display = 'flex';
@@ -641,6 +655,14 @@ async function init() {
         console.error("Error during initialization:", error);
         showNotification("Error initializing app. Check console for details.", "error");
     }
+  // Clean up workout history on initialization
+  if (Array.isArray(workoutHistory)) {
+      workoutHistory = workoutHistory.filter(entry => {
+          if (typeof entry === 'string') return true;
+          if (typeof entry === 'object' && entry !== null && typeof entry.workout === 'string') return true;
+          return false;
+      });
+  }
 }
 
 // Start the application when DOM is ready
