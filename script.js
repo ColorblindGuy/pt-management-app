@@ -821,203 +821,6 @@ function updateAttendanceWithAlibi(memberName, status, alibi) {
     }
 }
 
-function updateTodayRosterUI() {
-    const today = new Date().toISOString().split('T')[0];
-    const todayRecord = attendanceRecords.find(record => record.date === today) || {
-        date: today,
-        attendance: {}
-    };
-
-    dom.attendanceList.innerHTML = '';
-
-    // Create table structure
-    const table = document.createElement('table');
-    table.style.width = '100%';
-    table.style.borderCollapse = 'collapse';
-    table.style.marginTop = '10px';
-    
-    // Create header
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
-    headerRow.innerHTML = `
-        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #ddd; background-color: #f8f9fa;">Member</th>
-        <th style="text-align: center; padding: 12px; border-bottom: 2px solid #ddd; background-color: #f8f9fa;">Status</th>
-        <th style="text-align: center; padding: 12px; border-bottom: 2px solid #ddd; background-color: #f8f9fa;">Actions</th>
-    `;
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    // Create table body
-    const tbody = document.createElement('tbody');
-
-    members.forEach(member => {
-        const row = document.createElement('tr');
-        row.style.borderBottom = '1px solid #eee';
-        
-        const currentData = todayRecord.attendance[member.name] || 'unknown';
-        const currentStatus = typeof currentData === 'string' ? currentData : currentData.status;
-        const currentAlibi = typeof currentData === 'object' ? currentData.alibi : '';
-
-        // Member name cell
-        const nameCell = document.createElement('td');
-        nameCell.style.padding = '12px';
-        nameCell.innerHTML = `<strong>${member.name}</strong>${member.isPTLeader ? ' ⭐' : ''}`;
-        
-        // Status cell with icon
-        const statusCell = document.createElement('td');
-        statusCell.style.textAlign = 'center';
-        statusCell.style.padding = '12px';
-        
-        let statusIcon = '';
-        let statusColor = '';
-        let statusText = '';
-        
-        switch(currentStatus) {
-            case 'present':
-                statusIcon = '✅';
-                statusColor = '#28a745';
-                statusText = 'Present';
-                break;
-            case 'absent':
-                statusIcon = '❌';
-                statusColor = '#dc3545';
-                statusText = 'Absent';
-                break;
-            case 'excused':
-                statusIcon = '🔵';
-                statusColor = '#17a2b8';
-                statusText = 'Excused';
-                break;
-            default:
-                statusIcon = '⚪';
-                statusColor = '#6c757d';
-                statusText = 'Not Marked';
-        }
-        
-        statusCell.innerHTML = `<span style="font-size: 18px;">${statusIcon}</span><br><small style="color: ${statusColor}; font-weight: bold;">${statusText}</small>`;
-        
-        // Actions cell
-        const actionsCell = document.createElement('td');
-        actionsCell.style.textAlign = 'center';
-        actionsCell.style.padding = '12px';
-        
-        const actionButtons = document.createElement('div');
-        actionButtons.style.display = 'flex';
-        actionButtons.style.gap = '5px';
-        actionButtons.style.justifyContent = 'center';
-        
-        // Present button
-        const presentBtn = document.createElement('button');
-        presentBtn.className = `status-btn status-present ${currentStatus === 'present' ? 'active' : ''}`;
-        presentBtn.textContent = 'Present';
-        presentBtn.style.fontSize = '11px';
-        presentBtn.style.padding = '4px 8px';
-        presentBtn.onclick = () => updateAttendance(member.name, 'present');
-        
-        // Absent button
-        const absentBtn = document.createElement('button');
-        absentBtn.className = `status-btn status-absent ${currentStatus === 'absent' ? 'active' : ''}`;
-        absentBtn.textContent = 'Absent';
-        absentBtn.style.fontSize = '11px';
-        absentBtn.style.padding = '4px 8px';
-        absentBtn.onclick = () => updateAttendance(member.name, 'absent');
-        
-        // Excused button
-        const excusedBtn = document.createElement('button');
-        excusedBtn.className = `status-btn status-excused ${currentStatus === 'excused' ? 'active' : ''}`;
-        excusedBtn.textContent = 'Excused';
-        excusedBtn.style.fontSize = '11px';
-        excusedBtn.style.padding = '4px 8px';
-        excusedBtn.onclick = () => updateAttendance(member.name, 'excused');
-        
-        actionButtons.appendChild(presentBtn);
-        actionButtons.appendChild(absentBtn);
-        actionButtons.appendChild(excusedBtn);
-        actionsCell.appendChild(actionButtons);
-        
-        row.appendChild(nameCell);
-        row.appendChild(statusCell);
-        row.appendChild(actionsCell);
-        tbody.appendChild(row);
-        
-        // Add alibi row if needed
-        if (currentStatus !== 'present' && currentStatus !== 'unknown' && currentAlibi) {
-            const alibiRow = document.createElement('tr');
-            alibiRow.style.backgroundColor = '#f8f9fa';
-            
-            const alibiCell = document.createElement('td');
-            alibiCell.colSpan = 3;
-            alibiCell.style.padding = '8px 12px';
-            alibiCell.style.fontSize = '12px';
-            alibiCell.style.color = '#666';
-            alibiCell.innerHTML = `<em>Alibi: ${currentAlibi}</em>`;
-            
-            alibiRow.appendChild(alibiCell);
-            tbody.appendChild(alibiRow);
-        }
-    });
-
-    table.appendChild(tbody);
-    dom.attendanceList.appendChild(table);
-
-    if (members.length === 0) {
-        dom.attendanceList.innerHTML = '<p>No members added yet. Add members in the Unit Setup section.</p>';
-    }
-}
-
-function updateHistoryAttendance(date, memberName, newStatus) {
-    const record = attendanceRecords.find(r => r.date === date);
-    if (record) {
-        const currentData = record.attendance[memberName];
-        const alibi = typeof currentData === 'object' ? currentData.alibi : '';
-        
-        record.attendance[memberName] = newStatus === 'present' ? 'present' : {
-            status: newStatus,
-            alibi: alibi
-        };
-        
-        saveData();
-        updateRosterHistoryUI();
-        showNotification(`Updated ${memberName}'s attendance for ${date}`, 'success');
-    }
-}
-
-function updateHistoryAlibi(date, memberName, alibi) {
-    const record = attendanceRecords.find(r => r.date === date);
-    if (record) {
-        const currentData = record.attendance[memberName];
-        const status = typeof currentData === 'string' ? currentData : currentData.status;
-        
-        if (status !== 'present') {
-            record.attendance[memberName] = {
-                status: status,
-                alibi: alibi
-            };
-            saveData();
-            showNotification(`Updated alibi for ${memberName}`, 'success');
-        }
-    }
-}
-
-function deleteAttendanceRecord(date) {
-    if (confirm(`Are you sure you want to delete the attendance record for ${date}?`)) {
-        attendanceRecords = attendanceRecords.filter(record => record.date !== date);
-        saveData();
-        updateRosterHistoryUI();
-        showNotification(`Deleted attendance record for ${date}`, 'success');
-    }
-}
-function setManualWorkout() {
-    const workoutText = dom.manualWorkoutInput.value.trim();
-    if (!workoutText) {
-        showNotification("Please enter a workout plan", "error");
-        return;
-    }
-    
-    confirmAndUseWorkout(workoutText);
-    dom.manualWorkoutInput.value = '';
-}
-
 function updateRosterHistoryUI() {
     dom.attendanceHistory.innerHTML = '';
     
@@ -1167,6 +970,77 @@ function updateRosterHistoryUI() {
         table.appendChild(tbody);
         recordDiv.appendChild(table);
         dom.attendanceHistory.appendChild(recordDiv);
+    });
+}
+
+function deleteAttendanceRecord(date) {
+    if (confirm(`Are you sure you want to delete the attendance record for ${date}?`)) {
+        attendanceRecords = attendanceRecords.filter(record => record.date !== date);
+        saveData();
+        updateRosterHistoryUI();
+        showNotification(`Deleted attendance record for ${date}`, 'success');
+    }
+}
+
+function setManualWorkout() {
+    const workoutText = dom.manualWorkoutInput.value.trim();
+    if (!workoutText) {
+        showNotification("Please enter a workout plan", "error");
+        return;
+    }
+    
+    confirmAndUseWorkout(workoutText);
+    dom.manualWorkoutInput.value = '';
+}
+
+function updateWorkoutHistoryUI() {
+    dom.workoutHistoryList.innerHTML = '';
+    
+    if (workoutHistory.length === 0) {
+        dom.workoutHistoryList.innerHTML = '<li>No workout history available.</li>';
+        return;
+    }
+    
+    // Sort by date (newest first)
+    const sortedHistory = [...workoutHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    sortedHistory.forEach((workout, index) => {
+        const li = document.createElement('li');
+        li.style.display = 'flex';
+        li.style.justifyContent = 'space-between';
+        li.style.alignItems = 'center';
+        li.style.padding = '10px';
+        li.style.borderBottom = '1px solid #e0e0e0';
+        
+        const workoutInfo = document.createElement('div');
+        workoutInfo.innerHTML = `<strong>${workout.date}</strong><br><small>${workout.workout.substring(0, 100)}${workout.workout.length > 100 ? '...' : ''}</small>`;
+        
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.gap = '5px';
+        
+        // Use button
+        const useBtn = document.createElement('button');
+        useBtn.textContent = 'Use';
+        useBtn.className = 'btn btn-small';
+        useBtn.style.fontSize = '10px';
+        useBtn.style.padding = '3px 8px';
+        useBtn.onclick = () => confirmAndUseWorkout(workout.workout);
+        
+        // Delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '🗑️';
+        deleteBtn.className = 'btn btn-secondary';
+        deleteBtn.style.fontSize = '10px';
+        deleteBtn.style.padding = '3px 6px';
+        deleteBtn.onclick = () => deleteWorkout(index);
+        
+        actions.appendChild(useBtn);
+        actions.appendChild(deleteBtn);
+        
+        li.appendChild(workoutInfo);
+        li.appendChild(actions);
+        dom.workoutHistoryList.appendChild(li);
     });
 }
 
