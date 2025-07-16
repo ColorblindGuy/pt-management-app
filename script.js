@@ -101,6 +101,8 @@ async function loadData() {
             workoutHistory = data.workoutHistory || [];
             savedReports = data.savedReports || [];
             attendanceRecords = data.attendanceRecords || [];
+            // CLEAN THE WORKOUT HISTORY
+            cleanWorkoutHistory();
             console.log("Data loaded successfully from the live database!");
             showNotification("Data loaded from server!", "success");
         } else {
@@ -1090,5 +1092,16 @@ function handleWorkoutFileUpload(event) {
         showNotification('Workout uploaded and set as today\'s workout!', 'success');
     };
     reader.readAsText(file);
+}
+
+function cleanWorkoutHistory() {
+    if (!Array.isArray(workoutHistory)) return;
+    // Only keep valid entries: objects with a string workout, or strings
+    workoutHistory = workoutHistory.filter(entry => {
+        if (typeof entry === 'string') return true;
+        if (typeof entry === 'object' && entry !== null && typeof entry.workout === 'string') return true;
+        return false;
+    });
+    saveData();
 }
 
